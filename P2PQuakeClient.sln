@@ -3,7 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28010.2041
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P2PQuakeClient.Sandbox", "P2PQuakeClient.Sandbox\P2PQuakeClient.Sandbox.csproj", "{7A5B1CE6-0965-414F-859E-51DA0CCC339B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "P2PQuakeClient.Sandbox", "P2PQuakeClient.Sandbox\P2PQuakeClient.Sandbox.csproj", "{7A5B1CE6-0965-414F-859E-51DA0CCC339B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P2PQuakeClient", "src\P2PQuakeClient\P2PQuakeClient.csproj", "{82E04A7D-1051-4043-8F23-06A81761444D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P2PQuakeClient.Test", "src\P2PQuakeClient.Test\P2PQuakeClient.Test.csproj", "{5F5D58E9-2D72-44FC-AD8F-D77A0F7BD7D0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +19,14 @@ Global
 		{7A5B1CE6-0965-414F-859E-51DA0CCC339B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7A5B1CE6-0965-414F-859E-51DA0CCC339B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7A5B1CE6-0965-414F-859E-51DA0CCC339B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{82E04A7D-1051-4043-8F23-06A81761444D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82E04A7D-1051-4043-8F23-06A81761444D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82E04A7D-1051-4043-8F23-06A81761444D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82E04A7D-1051-4043-8F23-06A81761444D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5F5D58E9-2D72-44FC-AD8F-D77A0F7BD7D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5F5D58E9-2D72-44FC-AD8F-D77A0F7BD7D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5F5D58E9-2D72-44FC-AD8F-D77A0F7BD7D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5F5D58E9-2D72-44FC-AD8F-D77A0F7BD7D0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
