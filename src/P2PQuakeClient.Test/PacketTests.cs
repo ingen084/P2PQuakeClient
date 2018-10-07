@@ -25,8 +25,11 @@ namespace P2PQuakeClient.Test
 				}
 			}
 
+			//通常パケット
 			Assert.Equal("test", Split("test\r\n").ToArray().First());
+			//分断されたパケット
 			Assert.Equal("test", Split("te", "st\r\n").ToArray().First());
+			//通常パケット+分断パケット
 			Assert.Equal("test/test", string.Join("/", Split("test\r\nte", "st\r\n").ToArray()));
 		}
 		[Fact]
