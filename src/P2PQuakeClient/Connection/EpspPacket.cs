@@ -1,4 +1,4 @@
-﻿namespace P2PQuakeClient
+﻿namespace P2PQuakeClient.Connection
 {
 	public class EpspPacket
 	{
