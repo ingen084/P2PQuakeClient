@@ -2,16 +2,16 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace P2PQuakeClient.Connection
+namespace P2PQuakeClient
 {
 	public class PacketSplitter
 	{
-		Encoding Encoding { get; } = Encoding.GetEncoding("Shift_JIS");
+		public Encoding Encoding { get; } = Encoding.GetEncoding("Shift_JIS");
 
 		private readonly object _lockObject = new object();
 		private byte[] _pendingBytes;
 
-		public IEnumerable<string> WriteAndSplit(byte[] bytes, int byteCount)
+		public IEnumerable<string> ParseAndSplit(byte[] bytes, int byteCount)
 		{
 			lock (_lockObject)
 			{
