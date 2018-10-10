@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace P2PQuakeClient.Connections
@@ -11,27 +10,6 @@ namespace P2PQuakeClient.Connections
 	{
 		public ServerConnection(string host, int port) : base(host, port)
 		{
-			Connected += () => ManualResetEvent.Set();
-			Disconnected += () => ManualResetEvent.Set();
-		}
-
-		ManualResetEventSlim ManualResetEvent { get; } = new ManualResetEventSlim();
-		async Task WaitNextPacket(params int[] allowPacketCodes)
-		{
-			ManualResetEvent.Reset();
-			if (!await Task.Run(() => ManualResetEvent.Wait(10000)))
-				throw new EpspException("要求がタイムアウトしました。");
-			if (LastPacket.Code == 298)
-				throw new EpspNonCompliantProtocolException("クライアントが仕様に準拠していないようです。");
-			if (!allowPacketCodes.Contains(LastPacket.Code))
-				throw new EpspException("サーバから期待しているレスポンスがありせんでした。");
-		}
-
-		EpspPacket LastPacket { get; set; }
-		protected override void OnReceive(EpspPacket packet)
-		{
-			LastPacket = packet;
-			ManualResetEvent.Set();
 		}
 
 		/// <summary>
@@ -157,7 +135,7 @@ namespace P2PQuakeClient.Connections
 			if (LastPacket.Data.Length < 4)
 				throw new EpspException("サーバから正常なレスポンスがありせんでした。");
 
-			return new RsaKey(Convert.FromBase64String(LastPacket.Data[0]), Convert.FromBase64String(LastPacket.Data[1]), DateTime.Parse(LastPacket.Data[2]), Convert.FromBase64String(LastPacket.Data[3]));
+			return new RsaKey(Convert.FromBase64String(LastPacket.Data[0]), Convert.FromBase64String(LastPacket.Data[1]), DateTime.Parse(LastPacket.Data[2].Replace('-', ':')), Convert.FromBase64String(LastPacket.Data[3]));
 		}
 
 		/// <summary>
@@ -177,7 +155,7 @@ namespace P2PQuakeClient.Connections
 			foreach (var peerStr in LastPacket.Data)
 			{
 				var param = peerStr.Split(",");
-				peers.Add(int.Parse(param[0]), int.Parse(param[1]));
+				peers.Add(int.Parse(param[0].TrimStart('0')), int.Parse(param[1]));
 			}
 			return peers;
 		}
@@ -217,6 +195,36 @@ namespace P2PQuakeClient.Connections
 		{
 			await SendPacket(new EpspPacket(128, 1, peerId.ToString(), rsaPrivateKey == null ? "Unknown" : Convert.ToBase64String(rsaPrivateKey)));
 			await WaitNextPacket(248, 299);
+		}
+
+		/// <summary>
+		/// RSA鍵を再要求する
+		/// </summary>
+		/// <returns>RSA鍵情報</returns>
+		public async Task<RsaKey> UpdateRsaKey(int peerId, byte[] rsaPrivateKey)
+		{
+			await SendPacket(new EpspPacket(124, 1, peerId.ToString(), rsaPrivateKey == null ? "Unknown" : Convert.ToBase64String(rsaPrivateKey)));
+			await WaitNextPacket(244, 295);
+
+			if (LastPacket.Code == 295)
+				return null;
+			if (LastPacket.Data.Length < 4)
+				throw new EpspException("サーバから正常なレスポンスがありせんでした。");
+
+			return new RsaKey(Convert.FromBase64String(LastPacket.Data[0]), Convert.FromBase64String(LastPacket.Data[1]), DateTime.Parse(LastPacket.Data[2].Replace('-', ':')), Convert.FromBase64String(LastPacket.Data[3]));
+		}
+
+		/// <summary>
+		/// エコーする
+		/// </summary>
+		/// <param name="peerId">現在のピアID</param>
+		/// <param name="connectingCount">現在のピアとの接続数</param>
+		/// <returns>正常にエコーできたかどうか</returns>
+		public async Task<bool> SendEcho(int peerId, int connectingCount)
+		{
+			await SendPacket(new EpspPacket(123, 1, peerId.ToString(), connectingCount.ToString()));
+			await WaitNextPacket(243, 299);
+			return LastPacket.Code == 243;
 		}
 	}
 }

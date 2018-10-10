@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,13 +46,17 @@ namespace P2PQuakeClient.Connections
 			TcpClient = client;
 		}
 
+		ManualResetEventSlim ManualResetEvent { get; } = new ManualResetEventSlim();
 		public void StartReceive()
 		{
 			if (ConnectionTask != null)
 				throw new InvalidOperationException("すでに受信は開始済みです。");
+			Connected += () => ManualResetEvent.Set();
+			Disconnected += () => ManualResetEvent.Set();
 			if (!TcpClient.Connected)
 			{
-				TcpClient.Connect(Host, Port);
+				if(!TcpClient.ConnectAsync(Host, Port).Wait(1000))
+					throw new SocketException(10060);
 				Connected?.Invoke();
 			}
 			ConnectionTask = new Task(ReceiveTask().Wait, TokenSource.Token, TaskCreationOptions.LongRunning);
@@ -88,7 +93,34 @@ namespace P2PQuakeClient.Connections
 			}
 			Disconnect();
 		}
-		protected abstract void OnReceive(EpspPacket packet);
+
+		protected EpspPacket LastPacket { get; set; }
+		protected virtual void OnReceive(EpspPacket packet)
+		{
+			LastPacket = packet;
+			ManualResetEvent.Set();
+		}
+
+		protected async Task WaitNextPacket(params int[] allowPacketCodes)
+		{
+			ManualResetEvent.Reset();
+			if (!await Task.Run(() => ManualResetEvent.Wait(2000)))
+				throw new EpspException("要求がタイムアウトしました。");
+			if (LastPacket.Code == 298)
+				throw new EpspNonCompliantProtocolException("クライアントが仕様に準拠していないようです。");
+			if (!allowPacketCodes.Contains(LastPacket.Code))
+				throw new EpspException("サーバから期待しているレスポンスがありせんでした。");
+		}
+		protected async Task WaitCheckPacket(params int[] allowPacketCodes)
+		{
+			ManualResetEvent.Reset();
+			if (!await Task.Run(() => ManualResetEvent.Wait(100)))
+				return;
+			if (LastPacket.Code == 298)
+				throw new EpspNonCompliantProtocolException("クライアントが仕様に準拠していないようです。");
+			if (!allowPacketCodes.Contains(LastPacket.Code))
+				throw new EpspException("サーバから期待しているレスポンスがありせんでした。");
+		}
 
 		protected async Task SendPacket(EpspPacket packet)
 		{
@@ -116,7 +148,7 @@ namespace P2PQuakeClient.Connections
 		}
 
 
-		public void Disconnect()
+		public virtual void Disconnect()
 		{
 			if (!TcpClient.Connected)
 				return;
