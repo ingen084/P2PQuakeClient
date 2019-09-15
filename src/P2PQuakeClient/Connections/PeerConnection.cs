@@ -10,11 +10,11 @@ namespace P2PQuakeClient.Connections
 	{
 		public PeerConnection(TcpClient client) : base(client)
 		{
-			IsHostMode = true;
+			IsHosted = true;
 		}
 		public PeerConnection(string host, int port, int peerId) : base(host, port)
 		{
-			IsHostMode = false;
+			IsHosted = false;
 			PeerId = peerId;
 		}
 
@@ -43,9 +43,9 @@ namespace P2PQuakeClient.Connections
 		/// </summary>
 		public bool Established { get; set; } = false;
 		/// <summary>
-		/// 接続を受け入れたがわかどうか
+		/// こちらから接続を受け入れたがわかどうか
 		/// </summary>
-		public bool IsHostMode { get; set; }
+		public bool IsHosted { get; set; }
 		/// <summary>
 		/// ピアID
 		/// </summary>
@@ -64,21 +64,23 @@ namespace P2PQuakeClient.Connections
 			EchoTimer.Elapsed += async (s, e) => await SendEcho();
 			EchoTimer.Start();
 
-			if (IsHostMode)
+			if (IsHosted)
 			{
 				await SendPacket(new EpspPacket(614, 1, information.ToPacketData()));
 				await WaitNextPacket(634, 694);
+				// TODO: 634であればバージョンチェック
 			}
 			else
 			{
 				await WaitNextPacket(614);
 				await SendPacket(new EpspPacket(634, 1, information.ToPacketData()));
+				// TODO: バージョンチェック
 			}
 
 			if (LastPacket.Code == 694)
 				throw new EpspVersionObsoletedException("こちらのピア側のプロトコルバージョンが古いため、正常に接続できませんでした。");
 			if (LastPacket.Data.Length < 3)
-				throw new EpspException("サーバから正常なレスポンスがありせんでした。");
+				throw new EpspException("ピアから正常なレスポンスがありせんでした。");
 
 			return new ClientInformation(LastPacket.Data[0], LastPacket.Data[1], LastPacket.Data[2]);
 		}
@@ -89,7 +91,7 @@ namespace P2PQuakeClient.Connections
 		/// <param name="peerId">こちらのピアID</param>
 		public async Task ExchangePeerId(int peerId)
 		{
-			if (!IsHostMode)
+			if (!IsHosted)
 			{
 				await WaitNextPacket(612);
 				await SendPacket(new EpspPacket(632, 1, PeerId.ToString()));

@@ -6,7 +6,7 @@ namespace P2PQuakeClient
 {
 	public class PacketSplitter
 	{
-		public Encoding Encoding { get; } = Encoding.GetEncoding("Shift_JIS");
+		public Encoding Encoding { get; } = Encoding.GetEncoding(932);
 
 		private readonly object _lockObject = new object();
 		private byte[] _pendingBytes;

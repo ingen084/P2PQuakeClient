@@ -152,10 +152,10 @@ namespace P2PQuakeClient.Connections
 
 			//TODO: エラー処理
 			var peers = new Dictionary<int, int>();
-			foreach (var peerStr in LastPacket.Data)
+			foreach (var peerStr in LastPacket.Data[0].Split(';'))
 			{
 				var param = peerStr.Split(",");
-				peers.Add(int.Parse(param[0].TrimStart('0')), int.Parse(param[1]));
+				peers.Add(int.Parse(param[0]), int.Parse(param[1]));
 			}
 			return peers;
 		}

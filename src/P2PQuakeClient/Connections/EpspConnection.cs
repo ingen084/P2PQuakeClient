@@ -104,12 +104,12 @@ namespace P2PQuakeClient.Connections
 		protected async Task WaitNextPacket(params int[] allowPacketCodes)
 		{
 			ManualResetEvent.Reset();
-			if (!await Task.Run(() => ManualResetEvent.Wait(2000)))
+			if (!await Task.Run(() => ManualResetEvent.Wait(10000))) //TODO: タイムアウト時間の調整
 				throw new EpspException("要求がタイムアウトしました。");
 			if (LastPacket.Code == 298)
 				throw new EpspNonCompliantProtocolException("クライアントが仕様に準拠していないようです。");
 			if (!allowPacketCodes.Contains(LastPacket.Code))
-				throw new EpspException("サーバから期待しているレスポンスがありせんでした。");
+				throw new EpspException("サーバから期待しているレスポンスがありせんでした。: " + LastPacket.Code);
 		}
 		protected async Task WaitCheckPacket(params int[] allowPacketCodes)
 		{

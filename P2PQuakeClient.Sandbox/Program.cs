@@ -3,6 +3,7 @@ using P2PQuakeClient.PacketData;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
@@ -57,21 +58,21 @@ namespace P2PQuakeClient.Sandbox
 								var peerInfo = await peerConnection.ConnectAndExchangeClientInformation(clientInfo);
 								Console.WriteLine($"  - PeerInfo: {peerInfo.SoftwareName}/{peerInfo.SoftwareVersion}({peerInfo.ProtocolVersion})");
 								await peerConnection.ExchangePeerId(peerId);
-								Console.WriteLine("  - 接続完了");
+								Console.WriteLine("  - 接続完了 " + peerConnection.PeerId);
 							}
 							catch (Exception ex)
 							{
-								Console.WriteLine("  - " + ex.Message);
+								Console.WriteLine("  - 接続失敗: " + ex.Message);
 								continue;
 							}
 							peerConnections.Add(peerConnection);
 						}
 						await connection.NoticeConnectedPeerIds(peerConnections.Select(c => c.PeerId).ToArray());
 
-						peerId = await connection.GetPeerId(peerId, 6911, 901, peerConnections.Count(), 0);
+						peerId = await connection.GetPeerId(peerId, 6911, 901, peerConnections.Count(), 10);
 						Console.WriteLine($"PeerId: {peerId}");
 						rsaKey = await connection.GetRsaKey(peerId);
-						//await connection.GetRegionalPeersCount();
+						await connection.GetRegionalPeersCount();
 						Console.WriteLine($"ProtocolTime: {(await connection.GetProtocolTime()).ToString("yyyy/MM/dd HH:mm:ss.fff")}");
 					}
 					finally
