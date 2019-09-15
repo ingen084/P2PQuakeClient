@@ -19,6 +19,8 @@ namespace P2PQuakeClient.Sandbox
 				Console.WriteLine("Hello World!");
 				Console.ReadLine();
 
+				const string host = "p2pquake.ddo.jp";
+
 				Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 				var clientInfo = new ClientInformation("0.34", "P2PQuakeClient@ingen084", "sandbox");
 				int peerId = 0;
@@ -26,7 +28,7 @@ namespace P2PQuakeClient.Sandbox
 				List<PeerConnection> peerConnections = new List<PeerConnection>();
 
 				Console.WriteLine("ネットワークに参加しています。");
-				using (var connection = new ServerConnection("www.p2pquake.net", 6910))
+				using (var connection = new ServerConnection(host, 6910))
 				{
 					connection.Connected += () => Console.WriteLine("接続しました");
 					connection.Disconnected += () => Console.WriteLine("切断しました");
@@ -52,7 +54,7 @@ namespace P2PQuakeClient.Sandbox
 								if (peerConnections.Contains(peerConnection))
 									peerConnections.Remove(peerConnection);
 							};
-							peerConnection.DataReceived += p => Console.WriteLine("要伝送データ受信: " + peer.Id + p.ToPacketString());
+							peerConnection.DataReceived += p => Console.WriteLine($"要伝送データ受信: {peer.Id} {p.ToPacketString()}");
 							try
 							{
 								var peerInfo = await peerConnection.ConnectAndExchangeClientInformation(clientInfo);
@@ -86,7 +88,7 @@ namespace P2PQuakeClient.Sandbox
 				pingTimer.Elapsed += async (s, e) =>
 				{
 					Console.WriteLine("エコーをしています。");
-					using (var connection = new ServerConnection("www.p2pquake.net", 6910))
+					using (var connection = new ServerConnection(host, 6910))
 					{
 						connection.Connected += () => Console.WriteLine("接続しました");
 						connection.Disconnected += () => Console.WriteLine("切断しました");
@@ -117,7 +119,7 @@ namespace P2PQuakeClient.Sandbox
 				foreach (var connection in peerConnections.ToArray())
 					connection.Disconnect();
 
-				using (var connection = new ServerConnection("www.p2pquake.net", 6910))
+				using (var connection = new ServerConnection(host, 6910))
 				{
 					connection.Connected += () => Console.WriteLine("接続しました");
 					connection.Disconnected += () => Console.WriteLine("切断しました");

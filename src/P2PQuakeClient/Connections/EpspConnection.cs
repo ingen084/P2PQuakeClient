@@ -80,7 +80,7 @@ namespace P2PQuakeClient.Connections
 					}
 				}
 			}
-			catch (Exception ex) when (ex is TaskCanceledException || ex is IOException || ex is SocketException)
+			catch (Exception ex) when (ex is OperationCanceledException || ex is TaskCanceledException || ex is IOException || ex is SocketException)
 			{
 			}
 			catch (EpspException ex)
