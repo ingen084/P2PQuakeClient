@@ -60,7 +60,7 @@ namespace P2PQuakeClient.Connections
 			Disconnected += () => ManualResetEvent.Set();
 			if (!TcpClient.Connected)
 			{
-				if(!TcpClient.ConnectAsync(Host, Port).Wait(1000))
+				if(!TcpClient.ConnectAsync(Host, Port).Wait(2000))
 					throw new SocketException(10060);
 				Connected?.Invoke();
 			}

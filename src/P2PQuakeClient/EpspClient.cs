@@ -223,6 +223,8 @@ namespace P2PQuakeClient
 			}
 			Logger.Info("ネットワークから離脱しています。");
 
+			PeerController.DisconnectAllPeers();
+
 			var server = await ConnectServerAndHandshakeAsync();
 			if (server == null)
 			{

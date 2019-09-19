@@ -175,5 +175,14 @@ namespace P2PQuakeClient
 			packet.HopCount++;
 			await Task.WhenAll(Peers.Where(p => p != peer).Select(p => p.Connection.SendPacket(packet)));
 		}
+
+		public void DisconnectAllPeers()
+		{
+			foreach (var peer in Peers.ToArray())
+			{
+				peer?.Connection?.Disconnect();
+				peer?.Dispose();
+			}
+		}
 	}
 }

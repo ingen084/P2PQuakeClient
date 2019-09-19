@@ -224,6 +224,7 @@ namespace P2PQuakeClient.Connections
 		{
 			await SendPacket(new EpspPacket(123, 1, peerId.ToString(), connectingCount.ToString()));
 			await WaitNextPacket(243, 299);
+			Console.WriteLine("ECHO: " + LastPacket.ToPacketString());
 			return LastPacket.Code == 243;
 		}
 	}
