@@ -45,9 +45,9 @@ namespace P2PQuakeClient
 					return true;
 				}
 			}
-			catch (EpspException ex)
+			catch (Exception ex) when (ex is EpspException || ex is SocketException)
 			{
-				Logger.Warning($"ピア{PeerInfo?.Id.ToString() ?? ""} への接続に失敗しました。\n{ex}");
+				Logger.Warning($"ピア{PeerInfo?.Id.ToString() ?? ""} への接続に失敗しました。 {ex.Message}");
 			}
 			Logger.Info($"ピア{PeerInfo.Id} に接続できませんでした。");
 			return false;

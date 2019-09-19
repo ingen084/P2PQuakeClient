@@ -66,9 +66,9 @@ namespace P2PQuakeClient
 						return server;
 					}
 				}
-				catch (EpspException ex)
+				catch (Exception ex) when (ex is EpspException || ex is SocketException || ex is AggregateException)
 				{
-					Logger.Info($"サーバーへの接続中に例外が発生しました。\n{ex}");
+					Logger.Info($"サーバーへの接続中に例外が発生しました。 {ex.Message}");
 				}
 				Logger.Info("接続に失敗しました。");
 				server.Dispose();
@@ -116,7 +116,7 @@ namespace P2PQuakeClient
 			}
 			catch (Exception ex)
 			{
-				Logger.Warning($"受信スレッドで例外発生:\n{ex}");
+				Logger.Warning($"受信スレッドで例外発生: {ex}");
 			}
 			Logger.Info("Listenを終了しました。");
 		}
@@ -153,10 +153,16 @@ namespace P2PQuakeClient
 			Logger.Info("鍵を取得しています。");
 			if ((RsaKey = await server.GetRsaKey(PeerId)) == null)
 				Logger.Warning("鍵の取得に失敗しました。");
+
 			await server.GetRegionalPeersCount();
+
 			await GetAndCalcProtocolTimeAsync(server);
+
 			await server.SafeDisconnect();
 			server.Dispose();
+
+			Logger.Info("ネットワークへの参加が完了しました。");
+
 			return true;
 		}
 
@@ -213,6 +219,14 @@ namespace P2PQuakeClient
 				IsNetworkJoined = false;
 				return;
 			}
+
+			await server.LeaveNetworkRequest(PeerId, RsaKey?.PrivateKey);
+
+			IsNetworkJoined = false;
+			await server.SafeDisconnect();
+			server.Dispose();
+			Logger.Info("ネットワークから離脱しました。");
+			return;
 		}
 
 		private async Task GetAndCalcProtocolTimeAsync(ServerConnection server)
@@ -244,6 +258,7 @@ namespace P2PQuakeClient
 				//TODO イベントハンドラの設定
 				peer.Connection.Disconnected += () =>
 				{
+					Logger.Info($"{(peer.Connection.Established ? "" : "未完了状態の")}ピア{(peer.PeerId == default ? "" : (peer.PeerId + " "))}が切断しました。");
 					lock (Peers)
 						Peers.Remove(peer);
 				};

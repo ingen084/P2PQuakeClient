@@ -63,7 +63,7 @@ namespace P2PQuakeClient.Connections
 		{
 			StartReceive();
 
-			EchoTimer = new Timer(120 * 1000);
+			EchoTimer = new Timer(150 * 1000);
 			EchoTimer.Elapsed += async (s, e) => await SendEcho();
 			EchoTimer.Start();
 
@@ -123,7 +123,7 @@ namespace P2PQuakeClient.Connections
 		public override void Disconnect()
 		{
 			Established = false;
-			EchoTimer.Stop();
+			EchoTimer?.Stop();
 			base.Disconnect();
 		}
 	}

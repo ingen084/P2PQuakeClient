@@ -106,6 +106,8 @@ namespace P2PQuakeClient.Connections
 			ManualResetEvent.Reset();
 			if (!await Task.Run(() => ManualResetEvent.Wait(10000)))
 				throw new EpspException("要求がタイムアウトしました。");
+			if (LastPacket == null) //nullの場合は接続失敗
+				throw new EpspException("接続に失敗しました。");
 			if (LastPacket.Code == 298)
 				throw new EpspNonCompliantProtocolException("クライアントが仕様に準拠していないようです。");
 			if (!allowPacketCodes.Contains(LastPacket.Code))
@@ -132,7 +134,6 @@ namespace P2PQuakeClient.Connections
 					return;
 				}
 
-				//Console.WriteLine("Send: " + packet.ToPacketString());
 				byte[] buffer = Splitter.Encoding.GetBytes(packet.ToPacketString() + "\r\n");
 				await Stream.WriteAsync(buffer, 0, buffer.Length);
 			}
