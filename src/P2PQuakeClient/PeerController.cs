@@ -1,4 +1,5 @@
-﻿using System;
+﻿using P2PQuakeClient.SignedData;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -51,13 +52,18 @@ namespace P2PQuakeClient
 		Dictionary<(int sender, long uniq), int> EchoHistories { get; } = new Dictionary<(int, long), int>();
 		private async void DataReceived(EpspPeer peer, EpspPacket packet)
 		{
+			Client.Logger.Trace($"{peer.PeerId} DataReceived:\n{packet.ToPacketString()}");
+
 			//TODO: 調査エコーの発信
 			if (packet.Code == 615)
 			{
 				if (packet.Data.Length != 2
 				 || !int.TryParse(packet.Data[0], out var senderId)
 				 || !long.TryParse(packet.Data[1], out var uniqueNumber))
+				{
+					Client.Logger.Warning($"{peer.PeerId} から無効な調査エコーを受け取りました。");
 					return;
+				}
 
 				lock (EchoHistories)
 				{
@@ -79,12 +85,18 @@ namespace P2PQuakeClient
 				if (packet.Data.Length != 5
 				 || !int.TryParse(packet.Data[0], out var senderId)
 				 || !long.TryParse(packet.Data[1], out var uniqueNumber))
+				{
+					Client.Logger.Warning($"{peer.PeerId} から無効な調査エコー返答を受け取りました。");
 					return;
+				}
 
 				// バッファになければ無視
 				lock (EchoHistories)
 					if (!EchoHistories.ContainsKey((senderId, uniqueNumber)))
+					{
+						Client.Logger.Debug($"{peer.PeerId} からバッファにない調査エコーを受け取りました。");
 						return;
+					}
 
 				packet.HopCount++;
 
@@ -99,7 +111,10 @@ namespace P2PQuakeClient
 			}
 			// 500番台
 			if (packet.Data.Length < 3)
+			{
+				Client.Logger.Warning($"{peer.PeerId} から不正な500番台パケットを受け取りました。");
 				return;
+			}
 
 			lock (DataSignatureHistories)
 			{
@@ -110,7 +125,55 @@ namespace P2PQuakeClient
 					DataSignatureHistories.RemoveAt(0);
 			}
 
-			//TODO: メッセージ受信周り
+			bool validated = false;
+			switch (packet.Code)
+			{
+				case 551:
+				case 552:
+				case 561:
+					{
+						string targetData = "";
+						if (packet.Code == 551)
+							targetData = $"{packet.Data[2]}:{packet.Data[3]}";
+						else if (packet.Code == 552)
+							targetData = packet.Data[2];
+						else if (packet.Code == 561)
+							targetData = packet.Data[2];
+
+						if (packet.Data.Length != 4
+						|| !DateTime.TryParse(packet.Data[1].Replace('-', ':'), out var expirationTime))
+							return;
+						if (!RsaCryptoService.VerifyServerData(new ServerSignedData(targetData, expirationTime, Convert.FromBase64String(packet.Data[0])), Client.ProtocolTime))
+						{
+							Client.Logger.Warning($"{peer.PeerId} からのパケットの署名の検証に失敗しました。");
+							return;
+						}
+						validated = true;
+					}
+					break;
+				case 555:
+					{
+						if (packet.Data.Length != 6
+						 || !DateTime.TryParse(packet.Data[1].Replace('-', ':'), out var expirationTime)
+						 || !DateTime.TryParse(packet.Data[4].Replace('-', ':'), out var keyExpirationTime))
+							return;
+						if (!RsaCryptoService.VerifyPeerData(new PeerSignedData(packet.Data[5], Convert.FromBase64String(packet.Data[0]), expirationTime, Convert.FromBase64String(packet.Data[2]), Convert.FromBase64String(packet.Data[3]), keyExpirationTime), Client.ProtocolTime))
+						{
+							Client.Logger.Warning($"{peer.PeerId} からのパケットの署名の検証に失敗しました。");
+							return;
+						}
+						validated = true;
+					}
+					break;
+				default:
+					Client.Logger.Warning($"{peer.PeerId} から未定義の伝送系パケットを受信しました。");
+					break;
+			}
+			
+			Client.OnDataReceived(validated, packet);
+
+			packet.HopCount++;
+			await Task.WhenAll(Peers.Where(p => p != peer).Select(p => p.Connection.SendPacket(packet)));
 		}
 	}
 }

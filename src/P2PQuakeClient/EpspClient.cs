@@ -29,9 +29,15 @@ namespace P2PQuakeClient
 			PeerController = new PeerController(this);
 		}
 
-		public event Action<string[]> DataReceived;
-		internal void OnDataReceived(string[] data)
-			=> Task.Run(() => DataReceived?.Invoke(data));
+		/// <summary>
+		/// データを受信した
+		/// <para>bool: ライブラリ側で検証済みかどうか</param>
+		/// <para>int: コード</param>
+		/// <para>string[]: パケットのデータ 鍵も含みます</para>
+		/// </summary>
+		public event Action<bool, EpspPacket> DataReceived;
+		internal void OnDataReceived(bool validated, EpspPacket packet)
+			=> Task.Run(() => DataReceived?.Invoke(validated, packet));
 
 		internal PeerController PeerController { get; }
 		internal IEpspLogger Logger { get; }

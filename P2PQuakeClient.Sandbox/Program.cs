@@ -28,6 +28,10 @@ namespace P2PQuakeClient.Sandbox
 				};
 
 				var client = new EpspClient(new EasyConsoleLogger(), hosts, 901, 6911, 1024);
+				client.DataReceived += (v, d) =>
+				{
+					Console.WriteLine("**データ受信");
+				};
 				if (!await client.JoinNetworkAsync())
 				{
 					Console.WriteLine("**Join失敗**");
