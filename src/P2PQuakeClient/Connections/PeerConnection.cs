@@ -22,18 +22,20 @@ namespace P2PQuakeClient.Connections
 		{
 			if ((packet.Code / 100) == 5) // データ伝送
 			{
-				DataReceived(packet);
 				return;
 			}
 			switch (packet.Code)
 			{
+				case var code when (code / 100) == 5:
+					DataReceived?.Invoke(packet);
+					break;
 				case 611: //echo
 					await SendPacket(new EpspPacket(631, 1));
-					return;
-				case 615: //TODO: 調査パケットまわり
+					break;
+				case 615:
 				case 635:
-					Console.WriteLine("調査パケット受信: " + packet.ToPacketString());
-					return;
+					DataReceived?.Invoke(packet);
+					break;
 			}
 			base.OnReceive(packet);
 		}
@@ -52,6 +54,7 @@ namespace P2PQuakeClient.Connections
 		public int PeerId { get; set; }
 		/// <summary>
 		/// 伝送すべき情報を受信した
+		/// 500･600番代の調査パケットをやり取りします
 		/// </summary>
 		public event Action<EpspPacket> DataReceived;
 
@@ -82,6 +85,7 @@ namespace P2PQuakeClient.Connections
 			if (LastPacket.Data.Length < 3)
 				throw new EpspException("ピアから正常なレスポンスがありせんでした。");
 
+			Established = true;
 			return new ClientInformation(LastPacket.Data[0], LastPacket.Data[1], LastPacket.Data[2]);
 		}
 
@@ -94,7 +98,7 @@ namespace P2PQuakeClient.Connections
 			if (!IsHosted)
 			{
 				await WaitNextPacket(612);
-				await SendPacket(new EpspPacket(632, 1, PeerId.ToString()));
+				await SendPacket(new EpspPacket(632, 1, peerId.ToString()));
 				return;
 			}
 			await SendPacket(new EpspPacket(612, 1));
@@ -113,19 +117,12 @@ namespace P2PQuakeClient.Connections
 		async Task SendEcho()
 		{
 			await SendPacket(new EpspPacket(611, 1));
-			try
-			{
-				await WaitNextPacket(631);
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine("Echo Error:" + ex);
-				Disconnect();
-			}
+			await WaitNextPacket(631);
 		}
 
 		public override void Disconnect()
 		{
+			Established = false;
 			EchoTimer.Stop();
 			base.Disconnect();
 		}

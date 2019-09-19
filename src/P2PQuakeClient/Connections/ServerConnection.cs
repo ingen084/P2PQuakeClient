@@ -191,7 +191,7 @@ namespace P2PQuakeClient.Connections
 		/// </summary>
 		/// <param name="peerId">ピアID</param>
 		/// <param name="rsaPrivateKey">割り当てられた秘密鍵</param>
-		public async Task WithdrawalRequest(int peerId, byte[] rsaPrivateKey = null)
+		public async Task LeaveNetworkRequest(int peerId, byte[] rsaPrivateKey = null)
 		{
 			await SendPacket(new EpspPacket(128, 1, peerId.ToString(), rsaPrivateKey == null ? "Unknown" : Convert.ToBase64String(rsaPrivateKey)));
 			await WaitNextPacket(248, 299);

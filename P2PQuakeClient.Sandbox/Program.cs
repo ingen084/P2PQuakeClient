@@ -128,7 +128,7 @@ namespace P2PQuakeClient.Sandbox
 						await connection.ConnectAndWaitClientInfoRequest();
 						var serverInfo = await connection.SendClientInformation(clientInfo);
 						Console.WriteLine($"ServerInfo: {serverInfo.SoftwareName}/{serverInfo.SoftwareVersion}({serverInfo.ProtocolVersion})");
-						await connection.WithdrawalRequest(peerId, rsaKey?.PrivateKey);
+						await connection.LeaveNetworkRequest(peerId, rsaKey?.PrivateKey);
 					}
 					finally
 					{

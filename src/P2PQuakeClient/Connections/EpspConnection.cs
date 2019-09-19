@@ -9,7 +9,7 @@ namespace P2PQuakeClient.Connections
 {
 	public abstract class EpspConnection : IDisposable
 	{
-		protected TcpClient TcpClient { get; }
+		public TcpClient TcpClient { get; }
 		protected NetworkStream Stream { get; set; }
 
 		/// <summary>
@@ -20,6 +20,11 @@ namespace P2PQuakeClient.Connections
 		/// 切断
 		/// </summary>
 		public event Action Disconnected;
+
+		/// <summary>
+		/// 接続済みかどうか
+		/// </summary>
+		public bool IsConnected => TcpClient?.Connected ?? false;
 
 		byte[] ReceiveBuffer { get; }
 		PacketSplitter Splitter { get; }
@@ -72,13 +77,8 @@ namespace P2PQuakeClient.Connections
 
 				var count = 0;
 				while (Stream.CanRead && (count = await Stream.ReadAsync(ReceiveBuffer, 0, ReceiveBuffer.Length, TokenSource.Token)) > 0)
-				{
 					foreach (var rawPacket in Splitter.ParseAndSplit(ReceiveBuffer, count))
-					{
-						//Console.WriteLine("Splitted: " + rawPacket);
 						OnReceive(new EpspPacket(rawPacket));
-					}
-				}
 			}
 			catch (Exception ex) when (ex is OperationCanceledException || ex is TaskCanceledException || ex is IOException || ex is SocketException)
 			{
@@ -104,7 +104,7 @@ namespace P2PQuakeClient.Connections
 		protected async Task WaitNextPacket(params int[] allowPacketCodes)
 		{
 			ManualResetEvent.Reset();
-			if (!await Task.Run(() => ManualResetEvent.Wait(10000))) //TODO: タイムアウト時間の調整
+			if (!await Task.Run(() => ManualResetEvent.Wait(10000)))
 				throw new EpspException("要求がタイムアウトしました。");
 			if (LastPacket.Code == 298)
 				throw new EpspNonCompliantProtocolException("クライアントが仕様に準拠していないようです。");

@@ -1,12 +1,12 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Nyamikan.Asn1PKCS" Version="0.1.1" />
-    <PackageReference Include="System.Text.Encoding.CodePages" Version="4.5.0" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="4.5.1" />
   </ItemGroup>
 
 </Project>
