@@ -74,13 +74,13 @@ namespace P2PQuakeClient
 					if (server.IsConnected)
 					{
 						var serverInfo = await server.SendClientInformation(ClientInfo);
-						Logger.Info($"接続しました。 {serverInfo.SoftwareName} - {serverInfo.SoftwareVersion} (v{serverInfo.ProtocolVersion})");
+						Logger.Info($"接続しました。 {serverInfo.SoftwareName}-{serverInfo.SoftwareVersion} (v{serverInfo.ProtocolVersion})");
 						return server;
 					}
 				}
 				catch (Exception ex) when (ex is EpspException || ex is SocketException || ex is AggregateException)
 				{
-					Logger.Info($"サーバーへの接続中に例外が発生しました。 {ex.Message}");
+					Logger.Info($"サーバーへの接続に失敗しました。 {ex.Message}");
 				}
 				Logger.Info("接続に失敗しました。");
 				server.Dispose();
@@ -125,7 +125,7 @@ namespace P2PQuakeClient
 			}
 			catch (Exception ex)
 			{
-				Logger.Warning($"受信スレッドで例外発生: {ex}");
+				Logger.Warning($"Listenスレッドで例外発生: {ex}");
 			}
 			Logger.Info("Listenを終了しました。");
 		}
@@ -148,7 +148,7 @@ namespace P2PQuakeClient
 				return false;
 			}
 			PeerId = await server.GetTemporaryPeerId();
-			Logger.Info($"仮ピアIDが割り当てられました。 {PeerId}");
+			Logger.Info($"仮ピアIDが割り当てられました: {PeerId}");
 			Logger.Debug($"ポート開放チェックをしています…");
 			IsPortForwarded = await server.CheckPortForwarding(PeerId, 6911);
 			Logger.Info($"ポートは開放されていま{(IsPortForwarded ? "" : "せんで")}した。");
@@ -156,16 +156,18 @@ namespace P2PQuakeClient
 			Logger.Info("ピアに接続しています。");
 			await GetAndConnectPeerAsync(server);
 
-			Logger.Info("本ピアIDを取得しています。");
 			PeerId = await server.GetPeerId(PeerId, 6911, AreaCode, PeerController.Count, MaxConnectablePeerCount);
+			Logger.Info($"本ピアIDを取得しました: {PeerId}");
 			IsNetworkJoined = true;
-			Logger.Info("鍵を取得しています。");
 			if ((RsaKey = await server.GetRsaKey(PeerId)) == null)
 				Logger.Warning("鍵の取得に失敗しました。");
+			else
+				Logger.Info("鍵を取得しました。");
 
 			await server.GetRegionalPeersCount();
 
 			await GetAndCalcProtocolTimeAsync(server);
+			Logger.Debug("PC時刻との時差: " + ProtocolTimeOffset);
 
 			await server.SafeDisconnect();
 			server.Dispose();

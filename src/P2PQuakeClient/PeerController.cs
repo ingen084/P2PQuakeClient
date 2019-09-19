@@ -35,14 +35,14 @@ namespace P2PQuakeClient
 			if (await peer.ConnectAndHandshakeAsync())
 			{
 				peer.Connection.DataReceived += p => DataReceived(peer, p);
+				lock (Peers)
+					Peers.Add(peer);
 				peer.Connection.Disconnected += () =>
 				{
 					Client.Logger.Info($"{(peer.Connection.Established ? "" : "未完了状態の")}ピア{(peer.PeerId == default ? "" : (peer.PeerId + " "))}が切断しました。");
 					lock (Peers)
 						Peers.Remove(peer);
 				};
-				lock (Peers)
-					Peers.Add(peer);
 				return true;
 			}
 			return false;

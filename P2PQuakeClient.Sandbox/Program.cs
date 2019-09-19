@@ -39,7 +39,7 @@ namespace P2PQuakeClient.Sandbox
 				}
 				try
 				{
-					using var timer = new Timer(1000 * 60 * 60 * 10);
+					using var timer = new Timer(1000 * 60 * 10);
 					timer.Elapsed += async (s, e) => await client.EchoAsync();
 					timer.Start();
 					Console.ReadLine();
