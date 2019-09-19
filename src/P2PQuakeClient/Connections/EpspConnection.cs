@@ -51,7 +51,7 @@ namespace P2PQuakeClient.Connections
 			TcpClient = client;
 		}
 
-		ManualResetEventSlim ManualResetEvent { get; } = new ManualResetEventSlim();
+		protected ManualResetEventSlim ManualResetEvent { get; } = new ManualResetEventSlim();
 		public void StartReceive()
 		{
 			if (ConnectionTask != null)
@@ -97,7 +97,7 @@ namespace P2PQuakeClient.Connections
 		protected EpspPacket LastPacket { get; set; }
 		protected virtual void OnReceive(EpspPacket packet)
 		{
-			//if (packet.Code != 611)
+			//if (this is ServerConnection)
 			//	Console.WriteLine("↓ " + packet.ToPacketString());
 			LastPacket = packet;
 			ManualResetEvent.Set();
@@ -135,8 +135,10 @@ namespace P2PQuakeClient.Connections
 					Disconnect();
 					return;
 				}
-				//if (packet.Code != 631)
+				//if (this is ServerConnection)
 				//	Console.WriteLine("↑ " + packet.ToPacketString());
+				//else if (packet.Code / 100 == 5)
+				//	Console.WriteLine("P↑ " + packet.Code);
 				byte[] buffer = Splitter.Encoding.GetBytes(packet.ToPacketString() + "\r\n");
 				await Stream.WriteAsync(buffer, 0, buffer.Length);
 			}

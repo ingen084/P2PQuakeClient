@@ -23,7 +23,7 @@ namespace P2PQuakeClient
 
 			ClientInfo = new ClientInformation("0.34", "P2PQuakeClient@ingen084", Assembly.GetEntryAssembly().GetName().Version.ToString()
 #if DEBUG
-				+ " DEBUG"
+				+ "_DEBUG"
 #endif
 				);
 			PeerController = new PeerController(this);
@@ -156,8 +156,9 @@ namespace P2PQuakeClient
 			Logger.Info("ピアに接続しています。");
 			await GetAndConnectPeerAsync(server);
 
-			PeerId = await server.GetPeerId(PeerId, 6911, AreaCode, PeerController.Count, MaxConnectablePeerCount);
-			Logger.Info($"本ピアIDを取得しました: {PeerId}");
+			// MEMO エコーに失敗するなと思ってパケット覗いてみたらずっと仮ピアIDが使用されていた
+			var mainPeerId = await server.GetPeerId(PeerId, 6911, AreaCode, PeerController.Count, MaxConnectablePeerCount);
+			Logger.Info($"本ピアIDを取得しました: {mainPeerId} 使用しません。");
 			IsNetworkJoined = true;
 			if ((RsaKey = await server.GetRsaKey(PeerId)) == null)
 				Logger.Warning("鍵の取得に失敗しました。");

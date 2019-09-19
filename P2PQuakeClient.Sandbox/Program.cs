@@ -27,10 +27,10 @@ namespace P2PQuakeClient.Sandbox
 					"p2pquake.ddo.jp"
 				};
 
-				var client = new EpspClient(new EasyConsoleLogger(), hosts, 901, 6911, 1024);
+				var client = new EpspClient(new EasyConsoleLogger(), hosts, 901, 6911, 100);
 				client.DataReceived += (v, d) =>
 				{
-					Console.WriteLine("**データ受信 " + d.ToPacketString());
+					Console.WriteLine("**データ受信");
 				};
 				if (!await client.JoinNetworkAsync())
 				{
@@ -40,7 +40,11 @@ namespace P2PQuakeClient.Sandbox
 				try
 				{
 					using var timer = new Timer(1000 * 60 * 10);
-					timer.Elapsed += async (s, e) => await client.EchoAsync();
+					timer.Elapsed += async (s, e) =>
+					{
+						if (!await client.EchoAsync())
+							Console.WriteLine("**エコーに失敗");
+					};
 					timer.Start();
 					Console.ReadLine();
 					timer.Stop();

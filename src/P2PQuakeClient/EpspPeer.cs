@@ -41,7 +41,7 @@ namespace P2PQuakeClient
 				if (Connection.IsConnected)
 				{
 					await Connection.ExchangePeerId(EpspClient.PeerId);
-					Logger.Info($"ピア{PeerId} を登録しました。 {ClientInformation.SoftwareName}-{ClientInformation.SoftwareVersion} (v{ClientInformation.ProtocolVersion})");
+					Logger.Info($"ピア{PeerId} を登録しました。 {ClientInformation.SoftwareName}-{ClientInformation.SoftwareVersion} (v{ClientInformation.ProtocolVersion}) 現在の接続数:{EpspClient.PeerController.Count + 1}");
 					return true;
 				}
 			}

@@ -52,8 +52,6 @@ namespace P2PQuakeClient
 		Dictionary<(int sender, long uniq), int> EchoHistories { get; } = new Dictionary<(int, long), int>();
 		private async void DataReceived(EpspPeer peer, EpspPacket packet)
 		{
-			Client.Logger.Trace($"{peer.PeerId} DataReceived.");
-
 			//TODO: 調査エコーの発信
 			if (packet.Code == 615)
 			{
@@ -134,18 +132,17 @@ namespace P2PQuakeClient
 					{
 						string targetData = "";
 						if (packet.Code == 551)
-							targetData = $"{packet.Data[2]}:{packet.Data[3]}";
+							targetData = packet.Data[2] + packet.Data[3];
 						else if (packet.Code == 552)
 							targetData = packet.Data[2];
 						else if (packet.Code == 561)
 							targetData = packet.Data[2];
 
-						if (packet.Data.Length < 3
-						|| !DateTime.TryParse(packet.Data[1].Replace('-', ':'), out var expirationTime))
+						if (!DateTime.TryParse(packet.Data[1].Replace('-', ':'), out var expirationTime))
 							return;
 						if (!RsaCryptoService.VerifyServerData(new ServerSignedData(targetData, expirationTime, Convert.FromBase64String(packet.Data[0])), Client.ProtocolTime))
 						{
-							Client.Logger.Warning($"{peer.PeerId} からのパケットの署名の検証に失敗しました。");
+							Client.Logger.Warning($"{peer.PeerId} からの伝送パケットの署名の検証に失敗しました。\n{packet.ToPacketString()}");
 							return;
 						}
 						validated = true;
@@ -153,13 +150,13 @@ namespace P2PQuakeClient
 					break;
 				case 555:
 					{
-						if (packet.Data.Length != 6
+						if (packet.Data.Length < 6
 						 || !DateTime.TryParse(packet.Data[1].Replace('-', ':'), out var expirationTime)
 						 || !DateTime.TryParse(packet.Data[4].Replace('-', ':'), out var keyExpirationTime))
 							return;
 						if (!RsaCryptoService.VerifyPeerData(new PeerSignedData(packet.Data[5], Convert.FromBase64String(packet.Data[0]), expirationTime, Convert.FromBase64String(packet.Data[2]), Convert.FromBase64String(packet.Data[3]), keyExpirationTime), Client.ProtocolTime))
 						{
-							Client.Logger.Warning($"{peer.PeerId} からのパケットの署名の検証に失敗しました。");
+							Client.Logger.Warning($"{peer.PeerId} からの地震感知情報の署名の検証に失敗しました。\n{packet.ToPacketString()}");
 							return;
 						}
 						validated = true;
@@ -169,7 +166,7 @@ namespace P2PQuakeClient
 					Client.Logger.Warning($"{peer.PeerId} から未定義の伝送系パケットを受信しました。");
 					break;
 			}
-			Client.Logger.Trace($"{peer.PeerId} DataReceived 500- {(validated ? "**VALIDATED" : "")}");
+			//Client.Logger.Trace($"{peer.PeerId} DataReceived 500- {(validated ? "**VALIDATED" : "")}");
 
 			Client.OnDataReceived(validated, packet);
 

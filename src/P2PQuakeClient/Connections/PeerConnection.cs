@@ -20,7 +20,6 @@ namespace P2PQuakeClient.Connections
 
 		protected override async void OnReceive(EpspPacket packet)
 		{
-			base.OnReceive(packet);
 			switch (packet.Code)
 			{
 				case var code when (code / 100) == 5:
@@ -28,12 +27,14 @@ namespace P2PQuakeClient.Connections
 					break;
 				case 611: //echo
 					await SendPacket(new EpspPacket(631, 1));
-					break;
+					ManualResetEvent.Set();
+					return;
 				case 615:
 				case 635:
 					DataReceived?.Invoke(packet);
 					break;
 			}
+			base.OnReceive(packet);
 		}
 
 		/// <summary>
