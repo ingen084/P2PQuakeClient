@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,13 +19,19 @@ namespace P2PQuakeClient
 			ListenPort = listenPort;
 			ServerHosts = serverHosts ?? throw new ArgumentNullException(nameof(serverHosts));
 			Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+			ClientInfo = new ClientInformation("0.34", "P2PQuakeClient@ingen084", Assembly.GetEntryAssembly().GetName().Version.ToString()
+#if DEBUG
+				+ " DEBUG"
+#endif
+				);
 		}
 
 		internal IEpspLogger Logger { get; }
 		private readonly string[] ServerHosts;
 		public bool IsNetworkJoined { get; private set; }
 
-		public ClientInformation ClientInfo { get; set; } = new ClientInformation("0.34", "P2PQuakeClient@ingen084", "sandbox");
+		public ClientInformation ClientInfo { get; set; }
 
 		public List<EpspPeer> Peers { get; } = new List<EpspPeer>();
 
