@@ -124,7 +124,7 @@ namespace P2PQuakeClient.Connections
 				throw new EpspException("サーバから期待しているレスポンスがありせんでした。");
 		}
 
-		protected async Task SendPacket(EpspPacket packet)
+		public async Task SendPacket(EpspPacket packet)
 		{
 			try
 			{

@@ -27,7 +27,7 @@ namespace P2PQuakeClient.Sandbox
 					"p2pquake.ddo.jp"
 				};
 
-				var client = new EpspClient(new EasyConsoleLogger(), hosts, 901, 6911);
+				var client = new EpspClient(new EasyConsoleLogger(), hosts, 901, 6911, 1024);
 				if (!await client.JoinNetworkAsync())
 				{
 					Console.WriteLine("**Join失敗**");

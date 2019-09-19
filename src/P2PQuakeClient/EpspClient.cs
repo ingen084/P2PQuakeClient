@@ -13,8 +13,9 @@ namespace P2PQuakeClient
 {
 	public class EpspClient
 	{
-		public EpspClient(IEpspLogger logger, string[] serverHosts, int areaCode, ushort listenPort)
+		public EpspClient(IEpspLogger logger, string[] serverHosts, int areaCode, ushort listenPort, int maxConnectablePeerCount)
 		{
+			MaxConnectablePeerCount = maxConnectablePeerCount;
 			AreaCode = areaCode;
 			ListenPort = listenPort;
 			ServerHosts = serverHosts ?? throw new ArgumentNullException(nameof(serverHosts));
@@ -25,17 +26,22 @@ namespace P2PQuakeClient
 				+ " DEBUG"
 #endif
 				);
+			PeerController = new PeerController(this);
 		}
 
+		public event Action<string[]> DataReceived;
+		internal void OnDataReceived(string[] data)
+			=> Task.Run(() => DataReceived?.Invoke(data));
+
+		internal PeerController PeerController { get; }
 		internal IEpspLogger Logger { get; }
 		private readonly string[] ServerHosts;
 		public bool IsNetworkJoined { get; private set; }
 
 		public ClientInformation ClientInfo { get; set; }
 
-		public List<EpspPeer> Peers { get; } = new List<EpspPeer>();
-
 		public int AreaCode { get; }
+		public int MaxConnectablePeerCount { get; }
 		public ushort ListenPort { get; }
 		private Task ListenerTask { get; set; }
 
@@ -88,12 +94,9 @@ namespace P2PQuakeClient
 				{
 					var client = TcpListener.AcceptTcpClient();
 					Logger.Debug("着信接続: " + (client.Client.RemoteEndPoint as IPEndPoint).Address);
-					var found = false;
 
 					// とりあえず接続中におなじIPがあれば即時切断
-					lock (Peers)
-						found = Peers.Any(p => (p.Connection.TcpClient.Client.RemoteEndPoint as IPEndPoint).Address == (client.Client.RemoteEndPoint as IPEndPoint).Address);
-					if (found)
+					if (PeerController.CheckDuplicatePeer((client.Client.RemoteEndPoint as IPEndPoint).Address))
 					{
 						client.Close();
 						client.Dispose();
@@ -103,7 +106,7 @@ namespace P2PQuakeClient
 					Task.Run(async () =>
 					{
 						Logger.Debug((client.Client.RemoteEndPoint as IPEndPoint).Address + " ピア登録開始");
-						if (!await AddPeer(new EpspPeer(this, client)))
+						if (!await PeerController.AddPeer(new EpspPeer(this, client)))
 						{
 							Logger.Debug((client.Client.RemoteEndPoint as IPEndPoint).Address + " ピア登録失敗");
 							client.Close();
@@ -148,7 +151,7 @@ namespace P2PQuakeClient
 			await GetAndConnectPeerAsync(server);
 
 			Logger.Info("本ピアIDを取得しています。");
-			PeerId = await server.GetPeerId(PeerId, 6911, 901, Peers.Count, 10);
+			PeerId = await server.GetPeerId(PeerId, 6911, AreaCode, PeerController.Count, MaxConnectablePeerCount);
 			IsNetworkJoined = true;
 			Logger.Info("鍵を取得しています。");
 			if ((RsaKey = await server.GetRsaKey(PeerId)) == null)
@@ -180,7 +183,7 @@ namespace P2PQuakeClient
 				Logger.Info("サーバーに接続できないためエコーを送ることができませんでした。");
 				return false;
 			}
-			if (!await server.SendEcho(PeerId, Peers.Count))
+			if (!await server.SendEcho(PeerId, PeerController.Count))
 			{
 				Logger.Info("IPアドレスが変化していたため、エコーに失敗しました。");
 				server.Dispose();
@@ -237,10 +240,10 @@ namespace P2PQuakeClient
 		private async Task GetAndConnectPeerAsync(ServerConnection server)
 		{
 			var connectedPeers = new List<EpspPeer>();
-			await Task.WhenAll((await server.GetPeerInformations(PeerId)).Where(p => !Peers.Any(p2 => p2.PeerId == p.Id)).Select(async peerInfo =>
+			await Task.WhenAll((await server.GetPeerInformations(PeerId)).Where(p => !PeerController.CheckDuplicatePeer(p.Id)).Select(async peerInfo =>
 			 {
 				 var peer = new EpspPeer(this, peerInfo);
-				 if (!await AddPeer(peer))
+				 if (!await PeerController.AddPeer(peer))
 				 {
 					 peer.Dispose();
 					 return;
@@ -249,24 +252,6 @@ namespace P2PQuakeClient
 					 connectedPeers.Add(peer);
 			 }));
 			await server.NoticeConnectedPeerIds(connectedPeers.Select(p => p.PeerId).ToArray());
-		}
-
-		public async Task<bool> AddPeer(EpspPeer peer)
-		{
-			if (await peer.ConnectAndHandshakeAsync())
-			{
-				//TODO イベントハンドラの設定
-				peer.Connection.Disconnected += () =>
-				{
-					Logger.Info($"{(peer.Connection.Established ? "" : "未完了状態の")}ピア{(peer.PeerId == default ? "" : (peer.PeerId + " "))}が切断しました。");
-					lock (Peers)
-						Peers.Remove(peer);
-				};
-				lock (Peers)
-					Peers.Add(peer);
-				return true;
-			}
-			return false;
 		}
 	}
 }

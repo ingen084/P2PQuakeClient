@@ -64,7 +64,18 @@ namespace P2PQuakeClient.Connections
 			StartReceive();
 
 			EchoTimer = new Timer(150 * 1000);
-			EchoTimer.Elapsed += async (s, e) => await SendEcho();
+			EchoTimer.Elapsed += async (s, e) =>
+			{
+				try
+				{
+					await SendEcho();
+				}
+				catch
+				{
+					// エコーに失敗したら切断
+					Disconnect();
+				}
+			};
 			EchoTimer.Start();
 
 			if (IsHosted)
