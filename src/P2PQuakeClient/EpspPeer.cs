@@ -30,7 +30,6 @@ namespace P2PQuakeClient
 
 		public async Task<bool> ConnectAndHandshakeAsync()
 		{
-			//TODO 着信時処理
 			if (Connection == null)
 			{
 				Logger.Info($"ピア{PeerInfo.Id} に接続中…");
@@ -42,7 +41,7 @@ namespace P2PQuakeClient
 				if (Connection.IsConnected)
 				{
 					await Connection.ExchangePeerId(EpspClient.PeerId);
-					Logger.Info($"ピア{PeerId} に接続しました。 {ClientInformation.SoftwareName} - {ClientInformation.SoftwareVersion} (v{ClientInformation.ProtocolVersion})");
+					Logger.Info($"ピア{PeerId} を登録しました。 {ClientInformation.SoftwareName} - {ClientInformation.SoftwareVersion} (v{ClientInformation.ProtocolVersion})");
 					return true;
 				}
 			}

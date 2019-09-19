@@ -38,6 +38,8 @@ namespace P2PQuakeClient
 		public TimeSpan ProtocolTimeOffset { get; private set; }
 		public DateTime ProtocolTime => DateTime.Now + ProtocolTimeOffset;
 
+		private TcpListener TcpListener { get; set; }
+
 		private async Task<ServerConnection> ConnectServerAndHandshakeAsync()
 		{
 			var hosts = ServerHosts.OrderBy(h => Guid.NewGuid()); // ランダマイズ
@@ -70,36 +72,46 @@ namespace P2PQuakeClient
 
 		private void Listener()
 		{
-			var listener = new TcpListener(IPAddress.Any, ListenPort);
-			listener.Start();
+			TcpListener = new TcpListener(IPAddress.Any, ListenPort);
+			TcpListener.Start();
 			Logger.Info($"ポート{ListenPort} でListenを開始しました。");
-			while (true)
+			try
 			{
-				var client = listener.AcceptTcpClient();
-				Logger.Debug("着信接続: " + (client.Client.RemoteEndPoint as IPEndPoint).Address);
-				var found = false;
-
-				// とりあえず接続中におなじIPがあれば即時切断
-				lock (Peers)
-					found = Peers.Any(p => (p.Connection.TcpClient.Client.RemoteEndPoint as IPEndPoint).Address == (client.Client.RemoteEndPoint as IPEndPoint).Address);
-				if (found)
+				while (true)
 				{
-					client.Close();
-					continue;
-				}
+					var client = TcpListener.AcceptTcpClient();
+					Logger.Debug("着信接続: " + (client.Client.RemoteEndPoint as IPEndPoint).Address);
+					var found = false;
 
-				Task.Run(async () =>
-				{
-					Logger.Debug((client.Client.RemoteEndPoint as IPEndPoint).Address + " ピア登録開始");
-					if (!await AddPeer(new EpspPeer(this, client)))
+					// とりあえず接続中におなじIPがあれば即時切断
+					lock (Peers)
+						found = Peers.Any(p => (p.Connection.TcpClient.Client.RemoteEndPoint as IPEndPoint).Address == (client.Client.RemoteEndPoint as IPEndPoint).Address);
+					if (found)
 					{
-						Logger.Debug((client.Client.RemoteEndPoint as IPEndPoint).Address + " ピア登録失敗");
 						client.Close();
-						return;
+						client.Dispose();
+						continue;
 					}
-					Logger.Debug((client.Client.RemoteEndPoint as IPEndPoint).Address + " ピア登録成功");
-				});
+
+					Task.Run(async () =>
+					{
+						Logger.Debug((client.Client.RemoteEndPoint as IPEndPoint).Address + " ピア登録開始");
+						if (!await AddPeer(new EpspPeer(this, client)))
+						{
+							Logger.Debug((client.Client.RemoteEndPoint as IPEndPoint).Address + " ピア登録失敗");
+							client.Close();
+							client.Dispose();
+							return;
+						}
+						Logger.Debug((client.Client.RemoteEndPoint as IPEndPoint).Address + " ピア登録成功");
+					});
+				}
 			}
+			catch (Exception ex)
+			{
+				Logger.Warning($"受信スレッドで例外発生:\n{ex}");
+			}
+			Logger.Info("Listenを終了しました。");
 		}
 		public async Task<bool> JoinNetworkAsync()
 		{
