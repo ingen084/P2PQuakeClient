@@ -20,10 +20,7 @@ namespace P2PQuakeClient.Connections
 
 		protected override async void OnReceive(EpspPacket packet)
 		{
-			if ((packet.Code / 100) == 5) // データ伝送
-			{
-				return;
-			}
+			base.OnReceive(packet);
 			switch (packet.Code)
 			{
 				case var code when (code / 100) == 5:
@@ -37,7 +34,6 @@ namespace P2PQuakeClient.Connections
 					DataReceived?.Invoke(packet);
 					break;
 			}
-			base.OnReceive(packet);
 		}
 
 		/// <summary>
@@ -87,8 +83,8 @@ namespace P2PQuakeClient.Connections
 			else
 			{
 				await WaitNextPacket(614);
-				await SendPacket(new EpspPacket(634, 1, information.ToPacketData()));
 				// TODO: バージョンチェック
+				await SendPacket(new EpspPacket(634, 1, information.ToPacketData()));
 			}
 
 			if (LastPacket.Code == 694)
@@ -133,7 +129,6 @@ namespace P2PQuakeClient.Connections
 
 		public override void Disconnect()
 		{
-			Established = false;
 			EchoTimer?.Stop();
 			base.Disconnect();
 		}

@@ -52,7 +52,7 @@ namespace P2PQuakeClient
 		Dictionary<(int sender, long uniq), int> EchoHistories { get; } = new Dictionary<(int, long), int>();
 		private async void DataReceived(EpspPeer peer, EpspPacket packet)
 		{
-			Client.Logger.Trace($"{peer.PeerId} DataReceived:\n{packet.ToPacketString()}");
+			Client.Logger.Trace($"{peer.PeerId} DataReceived.");
 
 			//TODO: 調査エコーの発信
 			if (packet.Code == 615)
@@ -70,7 +70,7 @@ namespace P2PQuakeClient
 					if (EchoHistories.ContainsKey((senderId, uniqueNumber)))
 						return;
 					EchoHistories.Add((senderId, uniqueNumber), peer.PeerId);
-					if (EchoHistories.Count < 100)
+					if (EchoHistories.Count > 100)
 						EchoHistories.Remove(EchoHistories.Keys.First());
 				}
 				packet.HopCount++;
@@ -140,7 +140,7 @@ namespace P2PQuakeClient
 						else if (packet.Code == 561)
 							targetData = packet.Data[2];
 
-						if (packet.Data.Length != 4
+						if (packet.Data.Length < 3
 						|| !DateTime.TryParse(packet.Data[1].Replace('-', ':'), out var expirationTime))
 							return;
 						if (!RsaCryptoService.VerifyServerData(new ServerSignedData(targetData, expirationTime, Convert.FromBase64String(packet.Data[0])), Client.ProtocolTime))
@@ -169,7 +169,8 @@ namespace P2PQuakeClient
 					Client.Logger.Warning($"{peer.PeerId} から未定義の伝送系パケットを受信しました。");
 					break;
 			}
-			
+			Client.Logger.Trace($"{peer.PeerId} DataReceived 500- {(validated ? "**VALIDATED" : "")}");
+
 			Client.OnDataReceived(validated, packet);
 
 			packet.HopCount++;

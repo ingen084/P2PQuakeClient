@@ -60,7 +60,7 @@ namespace P2PQuakeClient.Connections
 			Disconnected += () => ManualResetEvent.Set();
 			if (!TcpClient.Connected)
 			{
-				if(!TcpClient.ConnectAsync(Host, Port).Wait(2000))
+				if (!TcpClient.ConnectAsync(Host, Port).Wait(2000))
 					throw new SocketException(10060);
 				Connected?.Invoke();
 			}
@@ -97,6 +97,8 @@ namespace P2PQuakeClient.Connections
 		protected EpspPacket LastPacket { get; set; }
 		protected virtual void OnReceive(EpspPacket packet)
 		{
+			//if (packet.Code != 611)
+			//	Console.WriteLine("↓ " + packet.ToPacketString());
 			LastPacket = packet;
 			ManualResetEvent.Set();
 		}
@@ -133,7 +135,8 @@ namespace P2PQuakeClient.Connections
 					Disconnect();
 					return;
 				}
-
+				//if (packet.Code != 631)
+				//	Console.WriteLine("↑ " + packet.ToPacketString());
 				byte[] buffer = Splitter.Encoding.GetBytes(packet.ToPacketString() + "\r\n");
 				await Stream.WriteAsync(buffer, 0, buffer.Length);
 			}
