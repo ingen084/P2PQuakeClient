@@ -17,26 +17,15 @@ namespace P2PQuakeClient
 		private static readonly Encoding SJIS = Encoding.GetEncoding(932);
 
 		#region Verifier
+		// ピアの鍵だけ期限と鍵の順番が逆らしい…どうしてこうなった。
 		public static bool VerifyPeerData(PeerSignedData signedData, DateTime nowTime)
-		{
-			if (!Verify(signedData.PublicKey, signedData.PublicKeyExpiration, signedData.PublicKeySignature, PeerPublicKey, nowTime))
-				return false;
-
-			if (signedData.Expiration < nowTime)
-				return false;
-
-			return Verify(MD5.ComputeHash(SJIS.GetBytes(signedData.Data)), signedData.Expiration, signedData.Signature, signedData.PublicKey, nowTime);
-		}
+			=> Verify(signedData.PublicKey, signedData.PublicKeyExpiration, signedData.PublicKeySignature, PeerPublicKey, nowTime, true)
+			&& Verify(MD5.ComputeHash(SJIS.GetBytes(signedData.Data)), signedData.Expiration, signedData.Signature, signedData.PublicKey, nowTime);
 
 		public static bool VerifyServerData(ServerSignedData signedData, DateTime nowTime)
-		{
-			if (signedData.Expiration < nowTime)
-				return false;
+			=> Verify(MD5.ComputeHash(SJIS.GetBytes(signedData.Data)), signedData.Expiration, signedData.Signature, ServerPublicKey, nowTime);
 
-			return Verify(MD5.ComputeHash(SJIS.GetBytes(signedData.Data)), signedData.Expiration, signedData.Signature, ServerPublicKey, nowTime);
-		}
-
-		private static bool Verify(byte[] data, DateTime expiration, byte[] signature, byte[] publicKey, DateTime nowTime)
+		private static bool Verify(byte[] data, DateTime expiration, byte[] signature, byte[] publicKey, DateTime nowTime, bool reverseData = false)
 		{
 			if (expiration < nowTime)
 				return false;
@@ -44,8 +33,16 @@ namespace P2PQuakeClient
 			var expirationBytes = SJIS.GetBytes(expiration.ToString("yyyy/MM/dd HH-mm-ss"));
 
 			var signedData = new byte[expirationBytes.Length + data.Length];
-			Buffer.BlockCopy(expirationBytes, 0, signedData, 0, expirationBytes.Length);
-			Buffer.BlockCopy(data, 0, signedData, expirationBytes.Length, data.Length);
+			if (reverseData)
+			{
+				Buffer.BlockCopy(data, 0, signedData, 0, data.Length);
+				Buffer.BlockCopy(expirationBytes, 0, signedData, data.Length, expirationBytes.Length);
+			}
+			else
+			{
+				Buffer.BlockCopy(expirationBytes, 0, signedData, 0, expirationBytes.Length);
+				Buffer.BlockCopy(data, 0, signedData, expirationBytes.Length, data.Length);
+			}
 
 			using var rsa = new RSACryptoServiceProvider();
 			rsa.ImportParameters(PKCS8DERDecoder.DecodePublicKey(publicKey));
