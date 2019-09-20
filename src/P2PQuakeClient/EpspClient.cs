@@ -48,6 +48,7 @@ namespace P2PQuakeClient
 
 		public int AreaCode { get; }
 		public int MaxConnectablePeerCount { get; }
+		public int MinimumKeepPeerCount { get; set; } = 5;
 		public ushort ListenPort { get; }
 		private Task ListenerTask { get; set; }
 
@@ -208,10 +209,13 @@ namespace P2PQuakeClient
 					RsaKey = key;
 			}
 
-			await GetAndConnectPeerAsync(server);
+			if (PeerController.Count < MinimumKeepPeerCount)
+				await GetAndConnectPeerAsync(server);
 			await GetAndCalcProtocolTimeAsync(server);
 			await server.SafeDisconnect();
 			server.Dispose();
+
+			Logger.Info("エコーが完了しました。");
 			return true;
 		}
 

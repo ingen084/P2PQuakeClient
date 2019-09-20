@@ -21,7 +21,11 @@ namespace P2PQuakeClient
 		{
 			if (!Verify(signedData.PublicKey, signedData.PublicKeyExpiration, signedData.PublicKeySignature, PeerPublicKey, nowTime))
 				return false;
-			return VerifyServerData(signedData, nowTime);
+
+			if (signedData.Expiration < nowTime)
+				return false;
+
+			return Verify(MD5.ComputeHash(SJIS.GetBytes(signedData.Data)), signedData.Expiration, signedData.Signature, signedData.PublicKey, nowTime);
 		}
 
 		public static bool VerifyServerData(ServerSignedData signedData, DateTime nowTime)
