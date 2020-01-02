@@ -105,7 +105,7 @@ namespace P2PQuakeClient.Connections
 
 		protected async Task WaitNextPacket(params int[] allowPacketCodes)
 		{
-			ManualResetEvent.Reset();
+			ManualResetEvent.Reset(); //TODO: 初回接続時は飛んでくるパケットが早すぎてResetするまえに送られてきてしまうことがあるらしい
 			if (!await Task.Run(() => ManualResetEvent.Wait(10000)))
 				throw new EpspException("要求がタイムアウトしました。");
 			if (LastPacket == null) //nullの場合は接続失敗
@@ -113,17 +113,7 @@ namespace P2PQuakeClient.Connections
 			if (LastPacket.Code == 298)
 				throw new EpspNonCompliantProtocolException("クライアントが仕様に準拠していないようです。");
 			if (!allowPacketCodes.Contains(LastPacket.Code))
-				throw new EpspException("サーバから期待しているレスポンスがありせんでした。: " + LastPacket.Code);
-		}
-		protected async Task WaitCheckPacket(params int[] allowPacketCodes)
-		{
-			ManualResetEvent.Reset();
-			if (!await Task.Run(() => ManualResetEvent.Wait(100)))
-				return;
-			if (LastPacket.Code == 298)
-				throw new EpspNonCompliantProtocolException("クライアントが仕様に準拠していないようです。");
-			if (!allowPacketCodes.Contains(LastPacket.Code))
-				throw new EpspException("サーバから期待しているレスポンスがありせんでした。");
+				throw new EpspException("接続先から期待しているレスポンスがありせんでした。: " + LastPacket.Code);
 		}
 
 		public async Task SendPacket(EpspPacket packet)

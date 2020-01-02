@@ -123,6 +123,11 @@ namespace P2PQuakeClient
 					DataSignatureHistories.RemoveAt(0);
 			}
 
+			// 受信した時点で再送させる
+			var nextPacket = packet.Clone();
+			nextPacket.HopCount++;
+			await Task.WhenAll(Peers.Where(p => p != peer).Select(p => p.Connection.SendPacket(nextPacket)));
+
 			bool validated = false;
 			switch (packet.Code)
 			{
@@ -169,9 +174,6 @@ namespace P2PQuakeClient
 			//Client.Logger.Trace($"{peer.PeerId} DataReceived 500- {(validated ? "**VALIDATED" : "")}");
 
 			Client.OnDataReceived(validated, packet);
-
-			packet.HopCount++;
-			await Task.WhenAll(Peers.Where(p => p != peer).Select(p => p.Connection.SendPacket(packet)));
 		}
 
 		public void DisconnectAllPeers()

@@ -151,15 +151,14 @@ namespace P2PQuakeClient
 			PeerId = await server.GetTemporaryPeerId();
 			Logger.Info($"仮ピアIDが割り当てられました: {PeerId}");
 			Logger.Debug($"ポート開放チェックをしています…");
-			IsPortForwarded = await server.CheckPortForwarding(PeerId, 6911);
+			IsPortForwarded = await server.CheckPortForwarding(PeerId, ListenPort);
 			Logger.Info($"ポートは開放されていま{(IsPortForwarded ? "" : "せんで")}した。");
 
 			Logger.Info("ピアに接続しています。");
 			await GetAndConnectPeerAsync(server);
 
-			// MEMO エコーに失敗するなと思ってパケット覗いてみたらずっと仮ピアIDが使用されていた
-			var mainPeerId = await server.GetPeerId(PeerId, 6911, AreaCode, PeerController.Count, MaxConnectablePeerCount);
-			Logger.Info($"本ピアIDを取得しました: {mainPeerId} 使用しません。");
+			var peerCount = await server.RegistPeerInfo(PeerId, ListenPort, AreaCode, PeerController.Count, MaxConnectablePeerCount);
+			Logger.Info($"本ピアIDとして登録しました。 総参加数: {peerCount}");
 			IsNetworkJoined = true;
 			if ((RsaKey = await server.GetRsaKey(PeerId)) == null)
 				Logger.Warning("鍵の取得に失敗しました。");

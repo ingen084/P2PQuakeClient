@@ -113,9 +113,9 @@ namespace P2PQuakeClient.Connections
 			await WaitNextPacket(632);
 
 			if (LastPacket.Data.Length < 1)
-				throw new EpspException("サーバから正常なレスポンスがありせんでした。");
+				throw new EpspException("ピアから正常なレスポンスがありせんでした。");
 			if (!int.TryParse(LastPacket.Data[0], out var id))
-				throw new EpspException("サーバから送信された仮IDをパースすることができませんでした。");
+				throw new EpspException("ピアから送信されたIDをパースすることができませんでした。");
 			PeerId = id;
 		}
 

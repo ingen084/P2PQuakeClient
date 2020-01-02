@@ -57,5 +57,13 @@
 		/// </summary>
 		/// <returns>生成されたパケット文字列</returns>
 		public string ToPacketString() => $"{Code.ToString("000")} {HopCount}{((Data?.Length ?? 0) > 0 ? " " + string.Join(':', Data) : "")}";
+
+		/// <summary>
+		/// パケットのインスタンスを複製します。
+		/// <para>ディープコピーではないため注意してください。</para>
+		/// </summary>
+		/// <returns>複製されたパケット</returns>
+		public EpspPacket Clone()
+			=> new EpspPacket(Code, HopCount, Data);
 	}
 }

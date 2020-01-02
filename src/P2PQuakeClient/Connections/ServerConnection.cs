@@ -105,10 +105,10 @@ namespace P2PQuakeClient.Connections
 
 
 		/// <summary>
-		/// 本ピアIDを要求する
+		/// 本ピアIDとして登録する
 		/// </summary>
-		/// <returns>ピアID</returns>
-		public async Task<int> GetPeerId(int temporaryPeerId, int port, int areaCode, int currentConnectingPeerCount, int maximumConnectablePeerCount)
+		/// <returns>現在の接続数</returns>
+		public async Task<int> RegistPeerInfo(int temporaryPeerId, int port, int areaCode, int currentConnectingPeerCount, int maximumConnectablePeerCount)
 		{
 			//MEMO: 仕様書のサンプルにはこれ以外のパラメタがつけられているが。
 			await SendPacket(new EpspPacket(116, 1, temporaryPeerId.ToString(), port.ToString(), areaCode.ToString(), currentConnectingPeerCount.ToString(), maximumConnectablePeerCount.ToString()));
