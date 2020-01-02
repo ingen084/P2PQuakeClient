@@ -1,5 +1,6 @@
 ﻿using P2PQuakeClient.Connections;
 using P2PQuakeClient.PacketData;
+using P2PQuakeClient.SignedData;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,7 +22,7 @@ namespace P2PQuakeClient
 			ServerHosts = serverHosts ?? throw new ArgumentNullException(nameof(serverHosts));
 			Logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-			ClientInfo = new ClientInformation("0.34", "P2PQuakeClient@ingen084", Assembly.GetEntryAssembly().GetName().Version.ToString()
+			ClientInfo = new ClientInformation("0.34r2", "P2PQuakeClient@ingen084", Assembly.GetEntryAssembly().GetName().Version.ToString()
 #if DEBUG
 				+ "_DEBUG"
 #endif
@@ -130,6 +131,10 @@ namespace P2PQuakeClient
 			}
 			Logger.Info("Listenを終了しました。");
 		}
+		/// <summary>
+		/// ネットワークに参加する
+		/// </summary>
+		/// <returns>参加できているか</returns>
 		public async Task<bool> JoinNetworkAsync()
 		{
 			if (IsNetworkJoined)
@@ -178,6 +183,10 @@ namespace P2PQuakeClient
 			return true;
 		}
 
+		/// <summary>
+		/// サーバーにエコーを送信する
+		/// </summary>
+		/// <returns>成功したか</returns>
 		public async Task<bool> EchoAsync()
 		{
 			if (!IsNetworkJoined)
@@ -218,6 +227,33 @@ namespace P2PQuakeClient
 			return true;
 		}
 
+		/// <summary>
+		/// 地震感知情報を送信する
+		/// </summary>
+		public async Task SendEarthquakeDetectedMessageAsync()
+		{
+			if (!IsNetworkJoined)
+			{
+				Logger.Error("ネットワークに参加していないため、地震感知情報の送信ができませんでした。");
+				return;
+			}
+			Logger.Info("地震感知情報を送信しています。");
+
+			EpspPacket packet;
+			var content = (DateTime.Now.Ticks / (PeerId != 0 ? PeerId : 983)) + "," + AreaCode;
+			if (RsaKey == null)
+				packet = new EpspPacket(555, 1, "", ProtocolTime.AddMinutes(10).ToString("yyyy/MM/dd HH-mm-ss"), "", "", content);
+			else
+			{
+				var signedData = RsaCryptoService.SignPeer(content, RsaKey, ProtocolTime);
+				packet = new EpspPacket(555, 1, signedData.ToPacketData());
+			}
+			await PeerController.SendPacketAllClientAsync(packet);
+		}
+
+		/// <summary>
+		/// ネットワークから離脱する
+		/// </summary>
 		public async Task LeaveNetworkAsync()
 		{
 			if (!IsNetworkJoined)

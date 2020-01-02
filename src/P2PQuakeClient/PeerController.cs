@@ -175,6 +175,21 @@ namespace P2PQuakeClient
 
 			Client.OnDataReceived(validated, packet);
 		}
+		public async Task SendPacketAllClientAsync(EpspPacket packet)
+		{
+			// 一応重複配送チェック
+			if (packet.Code / 100 == 5)
+				lock (DataSignatureHistories)
+				{
+					if (DataSignatureHistories.Contains(packet.Data[0]))
+						return;
+					DataSignatureHistories.Add(packet.Data[0]);
+					if (DataSignatureHistories.Count > 100)
+						DataSignatureHistories.RemoveAt(0);
+				}
+			foreach (var peer in Peers)
+				await peer.Connection?.SendPacket(packet);
+		}
 
 		public void DisconnectAllPeers()
 		{

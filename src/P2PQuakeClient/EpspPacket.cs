@@ -1,4 +1,6 @@
-﻿namespace P2PQuakeClient
+﻿using System;
+
+namespace P2PQuakeClient
 {
 	public class EpspPacket
 	{
@@ -37,6 +39,11 @@
 			Code = code;
 			HopCount = hopCount;
 			Data = data;
+			if (data == null)
+				return;
+			for (var i = 0; i < data.Length; i++)
+				if (data[i].Contains(':'))
+					throw new ArgumentException("パケットのデータ部分に区切り文字(:)を入れることができません。", nameof(data));
 		}
 
 		/// <summary>

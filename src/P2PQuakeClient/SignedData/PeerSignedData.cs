@@ -15,7 +15,7 @@ namespace P2PQuakeClient.SignedData
 		public byte[] PublicKeySignature { get; }
 		public DateTime PublicKeyExpiration { get; }
 
-		public string ToPacketData()
-			=> string.Join(':', Convert.ToBase64String(Signature), Expiration.ToString("yyyy/MM/dd HH-mm-ss"), Convert.ToBase64String(PublicKey), Convert.ToBase64String(PublicKeySignature), PublicKeyExpiration.ToString("yyyy/MM/dd HH-mm-ss"), Data);
+		public string[] ToPacketData()
+			=> new[] { Convert.ToBase64String(Signature), Expiration.ToString("yyyy/MM/dd HH-mm-ss"), Convert.ToBase64String(PublicKey), Convert.ToBase64String(PublicKeySignature), PublicKeyExpiration.ToString("yyyy/MM/dd HH-mm-ss"), Data };
 	}
 }
