@@ -52,7 +52,7 @@ namespace P2PQuakeClient.Connections
 		}
 
 		protected ManualResetEventSlim ManualResetEvent { get; } = new ManualResetEventSlim();
-		public void StartReceive()
+		public async ValueTask StartReceive(params int[] allowCodes)
 		{
 			if (ConnectionTask != null)
 				throw new InvalidOperationException("すでに受信は開始済みです。");
@@ -64,8 +64,12 @@ namespace P2PQuakeClient.Connections
 					throw new SocketException(10060);
 				Connected?.Invoke();
 			}
+			ManualResetEvent.Reset();
 			ConnectionTask = new Task(ReceiveTask().Wait, TokenSource.Token, TaskCreationOptions.LongRunning);
 			ConnectionTask.Start();
+			if (allowCodes == null || allowCodes.Length <= 0)
+				return;
+			await WaitNextPacketWithSkipReset(allowCodes);
 		}
 		private async Task ReceiveTask()
 		{
@@ -76,7 +80,7 @@ namespace P2PQuakeClient.Connections
 				Stream = TcpClient.GetStream();
 
 				var count = 0;
-				while (Stream.CanRead && (count = await Stream.ReadAsync(ReceiveBuffer, 0, ReceiveBuffer.Length, TokenSource.Token)) > 0)
+				while (Stream.CanRead && (count = await Stream.ReadAsync(ReceiveBuffer.AsMemory(0, ReceiveBuffer.Length), TokenSource.Token)) > 0)
 					foreach (var rawPacket in Splitter.ParseAndSplit(ReceiveBuffer, count))
 						OnReceive(new EpspPacket(rawPacket));
 			}
@@ -97,15 +101,21 @@ namespace P2PQuakeClient.Connections
 		protected EpspPacket LastPacket { get; set; }
 		protected virtual void OnReceive(EpspPacket packet)
 		{
-			//if (this is ServerConnection)
-			//	Console.WriteLine("↓ " + packet.ToPacketString());
+			if (this is ServerConnection)
+				Console.WriteLine("↓ " + packet.ToPacketString());
+			else
+				Console.WriteLine("P↓ " + packet.ToPacketString());
 			LastPacket = packet;
 			ManualResetEvent.Set();
 		}
 
 		protected async Task WaitNextPacket(params int[] allowPacketCodes)
 		{
-			ManualResetEvent.Reset(); //TODO: 初回接続時は飛んでくるパケットが早すぎてResetするまえに送られてきてしまうことがあるらしい
+			ManualResetEvent.Reset();
+			await WaitNextPacketWithSkipReset(allowPacketCodes);
+		}
+		protected async Task WaitNextPacketWithSkipReset(params int[] allowPacketCodes)
+		{
 			if (!await Task.Run(() => ManualResetEvent.Wait(10000)))
 				throw new EpspException("要求がタイムアウトしました。");
 			if (LastPacket == null) //nullの場合は接続失敗
@@ -125,10 +135,10 @@ namespace P2PQuakeClient.Connections
 					Disconnect();
 					return;
 				}
-				//if (this is ServerConnection)
-				//	Console.WriteLine("↑ " + packet.ToPacketString());
-				//else if (packet.Code / 100 == 5)
-				//	Console.WriteLine("P↑ " + packet.Code);
+				if (this is ServerConnection)
+					Console.WriteLine("↑ " + packet.ToPacketString());
+				else if (packet.Code / 100 == 5)
+					Console.WriteLine("P↑ " + packet.Code);
 				byte[] buffer = Splitter.Encoding.GetBytes(packet.ToPacketString() + "\r\n");
 				await Stream.WriteAsync(buffer, 0, buffer.Length);
 			}

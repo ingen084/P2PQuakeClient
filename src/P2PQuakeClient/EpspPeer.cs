@@ -37,6 +37,7 @@ namespace P2PQuakeClient
 			}
 			try
 			{
+				Logger.Info($"{(Connection.IsHosted ? "ホスト" : "クライアント")}モードでクライアント情報を交換中…");
 				ClientInformation = await Connection.ConnectAndExchangeClientInformation(EpspClient.ClientInfo);
 				if (Connection.IsConnected)
 				{

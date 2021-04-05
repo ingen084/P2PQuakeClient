@@ -17,8 +17,8 @@ namespace P2PQuakeClient.Connections
 		/// </summary>
 		public async Task ConnectAndWaitClientInfoRequest()
 		{
-			StartReceive();
-			await WaitNextPacket(211);
+			await StartReceive(211);
+			// await WaitNextPacket(211);
 		}
 
 		/// <summary>

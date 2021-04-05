@@ -40,15 +40,15 @@ namespace P2PQuakeClient.Connections
 		/// <summary>
 		/// そのピアがデータを送受信できる段階にあるかどうか
 		/// </summary>
-		public bool Established { get; set; } = false;
+		public bool Established { get; private set; } = false;
 		/// <summary>
 		/// こちらから接続を受け入れたがわかどうか
 		/// </summary>
-		public bool IsHosted { get; set; }
+		public bool IsHosted { get; }
 		/// <summary>
 		/// ピアID
 		/// </summary>
-		public int PeerId { get; set; }
+		public int PeerId { get; private set; }
 		/// <summary>
 		/// 伝送すべき情報を受信した
 		/// 500･600番代の調査パケットをやり取りします
@@ -58,7 +58,26 @@ namespace P2PQuakeClient.Connections
 		Timer EchoTimer;
 		public async Task<ClientInformation> ConnectAndExchangeClientInformation(ClientInformation information)
 		{
-			StartReceive();
+
+			if (IsHosted)
+			{
+				await StartReceive();
+				await SendPacket(new EpspPacket(614, 1, information.ToPacketData()));
+				await WaitNextPacket(634, 694);
+				// TODO: 634であればバージョンチェック
+			}
+			else
+			{
+				await StartReceive(614);
+				//await WaitNextPacket(614);
+				// TODO: バージョンチェック
+				await SendPacket(new EpspPacket(634, 1, information.ToPacketData()));
+			}
+
+			if (LastPacket.Code == 694)
+				throw new EpspVersionObsoletedException("こちらのピア側のプロトコルバージョンが古いため、正常に接続できませんでした。");
+			if (LastPacket.Data.Length < 3)
+				throw new EpspException("ピアから正常なレスポンスがありせんでした。");
 
 			EchoTimer = new Timer(150 * 1000);
 			EchoTimer.Elapsed += async (s, e) =>
@@ -74,24 +93,6 @@ namespace P2PQuakeClient.Connections
 				}
 			};
 			EchoTimer.Start();
-
-			if (IsHosted)
-			{
-				await SendPacket(new EpspPacket(614, 1, information.ToPacketData()));
-				await WaitNextPacket(634, 694);
-				// TODO: 634であればバージョンチェック
-			}
-			else
-			{
-				await WaitNextPacket(614);
-				// TODO: バージョンチェック
-				await SendPacket(new EpspPacket(634, 1, information.ToPacketData()));
-			}
-
-			if (LastPacket.Code == 694)
-				throw new EpspVersionObsoletedException("こちらのピア側のプロトコルバージョンが古いため、正常に接続できませんでした。");
-			if (LastPacket.Data.Length < 3)
-				throw new EpspException("ピアから正常なレスポンスがありせんでした。");
 
 			Established = true;
 			return new ClientInformation(LastPacket.Data[0], LastPacket.Data[1], LastPacket.Data[2]);
