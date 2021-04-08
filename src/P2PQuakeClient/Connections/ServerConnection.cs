@@ -17,8 +17,8 @@ namespace P2PQuakeClient.Connections
 		/// </summary>
 		public async Task ConnectAndWaitClientInfoRequest()
 		{
-			await StartReceive(211);
-			// await WaitNextPacket(211);
+			StartReceive();
+			await WaitNextPacket(211);
 		}
 
 		/// <summary>
@@ -30,14 +30,14 @@ namespace P2PQuakeClient.Connections
 		{
 			await SendPacket(new EpspPacket(131, 1, information.ToPacketData()));
 
-			await WaitNextPacket(212, 292);
-			if (LastPacket.Code == 292)
+			var packet = await WaitNextPacket(212, 292);
+			if (packet.Code == 292)
 				throw new EpspVersionObsoletedException("クライアント側のプロトコルバージョンが古いため、正常に接続できませんでした。");
 
-			if (LastPacket.Data.Length < 3)
+			if (packet.Data.Length < 3)
 				throw new EpspException("サーバーから正常なレスポンスがありせんでした。");
 
-			return new ClientInformation(LastPacket.Data[0], LastPacket.Data[1], LastPacket.Data[2]);
+			return new ClientInformation(packet.Data[0], packet.Data[1], packet.Data[2]);
 		}
 
 		/// <summary>
@@ -47,11 +47,11 @@ namespace P2PQuakeClient.Connections
 		public async Task<int> GetTemporaryPeerId()
 		{
 			await SendPacket(new EpspPacket(113, 1));
-			await WaitNextPacket(233);
+			var packet = await WaitNextPacket(233);
 
-			if (LastPacket.Data.Length < 1)
+			if (packet.Data.Length < 1)
 				throw new EpspException("サーバーから正常なレスポンスがありせんでした。");
-			if (!int.TryParse(LastPacket.Data[0], out var id))
+			if (!int.TryParse(packet.Data[0], out var id))
 				throw new EpspException("サーバーから送信された仮IDをパースすることができませんでした。");
 			return id;
 		}
@@ -63,11 +63,11 @@ namespace P2PQuakeClient.Connections
 		public async Task<bool> CheckPortForwarding(int temporaryPeerId, ushort port)
 		{
 			await SendPacket(new EpspPacket(114, 1, temporaryPeerId.ToString(), port.ToString()));
-			await WaitNextPacket(234);
+			var packet = await WaitNextPacket(234);
 
-			if (LastPacket.Data.Length < 1)
+			if (packet.Data.Length < 1)
 				throw new EpspException("サーバーから正常なレスポンスがありせんでした。");
-			if (!int.TryParse(LastPacket.Data[0], out var id))
+			if (!int.TryParse(packet.Data[0], out var id))
 				throw new EpspException("サーバーから送信されたデータパースすることができませんでした。");
 			return id == 1;
 		}
@@ -79,14 +79,14 @@ namespace P2PQuakeClient.Connections
 		public async Task<Peer[]> GetPeerInformations(int temporaryPeerId)
 		{
 			await SendPacket(new EpspPacket(115, 1, temporaryPeerId.ToString()));
-			await WaitNextPacket(235);
+			var packet = await WaitNextPacket(235);
 
-			if (LastPacket.Data.Length < 1)
+			if (packet.Data.Length < 1)
 				throw new EpspException("サーバーから正常なレスポンスがありせんでした。");
 
 			//TODO: エラー処理
 			var peers = new List<Peer>();
-			foreach (var peerStr in LastPacket.Data)
+			foreach (var peerStr in packet.Data)
 			{
 				var param = peerStr.Split(",");
 				peers.Add(new Peer(param[0], int.Parse(param[1]), int.Parse(param[2])));
@@ -112,11 +112,11 @@ namespace P2PQuakeClient.Connections
 		{
 			//MEMO: 仕様書のサンプルにはこれ以外のパラメタがつけられているが。
 			await SendPacket(new EpspPacket(116, 1, temporaryPeerId.ToString(), port.ToString(), areaCode.ToString(), currentConnectingPeerCount.ToString(), maximumConnectablePeerCount.ToString()));
-			await WaitNextPacket(236);
+			var packet = await WaitNextPacket(236);
 
-			if (LastPacket.Data.Length < 1)
+			if (packet.Data.Length < 1)
 				throw new EpspException("サーバーから正常なレスポンスがありせんでした。");
-			if (!int.TryParse(LastPacket.Data[0], out var id))
+			if (!int.TryParse(packet.Data[0], out var id))
 				throw new EpspException("サーバーから送信された本IDをパースすることができませんでした。");
 			return id;
 		}
@@ -128,14 +128,14 @@ namespace P2PQuakeClient.Connections
 		public async Task<RsaKey> GetRsaKey(int peerId)
 		{
 			await SendPacket(new EpspPacket(117, 1, peerId.ToString()));
-			await WaitNextPacket(237, 295);
+			var packet = await WaitNextPacket(237, 295);
 
-			if (LastPacket.Code == 295)
+			if (packet.Code == 295)
 				return null;
-			if (LastPacket.Data.Length < 4)
+			if (packet.Data.Length < 4)
 				throw new EpspException("サーバーから正常なレスポンスがありせんでした。");
 
-			return new RsaKey(Convert.FromBase64String(LastPacket.Data[0]), Convert.FromBase64String(LastPacket.Data[1]), DateTime.Parse(LastPacket.Data[2].Replace('-', ':')), Convert.FromBase64String(LastPacket.Data[3]));
+			return new RsaKey(Convert.FromBase64String(packet.Data[0]), Convert.FromBase64String(packet.Data[1]), DateTime.Parse(packet.Data[2].Replace('-', ':')), Convert.FromBase64String(packet.Data[3]));
 		}
 
 		/// <summary>
@@ -145,14 +145,14 @@ namespace P2PQuakeClient.Connections
 		public async Task<Dictionary<int, int>> GetRegionalPeersCount()
 		{
 			await SendPacket(new EpspPacket(127, 1));
-			await WaitNextPacket(247);
+			var packet = await WaitNextPacket(247);
 
-			if (LastPacket.Data.Length < 1)
+			if (packet.Data.Length < 1)
 				throw new EpspException("サーバーから正常なレスポンスがありせんでした。");
 
 			//TODO: エラー処理
 			var peers = new Dictionary<int, int>();
-			foreach (var peerStr in LastPacket.Data[0].Split(';'))
+			foreach (var peerStr in packet.Data[0].Split(';'))
 			{
 				var param = peerStr.Split(",");
 				peers.Add(int.Parse(param[0]), int.Parse(param[1]));
@@ -167,11 +167,11 @@ namespace P2PQuakeClient.Connections
 		public async Task<DateTime> GetProtocolTime()
 		{
 			await SendPacket(new EpspPacket(118, 1));
-			await WaitNextPacket(238);
+			var packet = await WaitNextPacket(238);
 
-			if (LastPacket.Data.Length < 1)
+			if (packet.Data.Length < 1)
 				throw new EpspException("サーバーから正常なレスポンスがありせんでした。");
-			if (!DateTime.TryParse(LastPacket.Data[0].Replace('-', ':'), out var time))
+			if (!DateTime.TryParse(packet.Data[0].Replace('-', ':'), out var time))
 				throw new EpspException("サーバーから送信された時刻をパースすることができませんでした。");
 			return time;
 		}
@@ -204,14 +204,14 @@ namespace P2PQuakeClient.Connections
 		public async Task<RsaKey> UpdateRsaKey(int peerId, byte[] rsaPrivateKey)
 		{
 			await SendPacket(new EpspPacket(124, 1, peerId.ToString(), rsaPrivateKey == null ? "Unknown" : Convert.ToBase64String(rsaPrivateKey)));
-			await WaitNextPacket(244, 295);
+			var packet = await WaitNextPacket(244, 295);
 
-			if (LastPacket.Code == 295)
+			if (packet.Code == 295)
 				return null;
-			if (LastPacket.Data.Length < 4)
+			if (packet.Data.Length < 4)
 				throw new EpspException("サーバーから正常なレスポンスがありせんでした。");
 
-			return new RsaKey(Convert.FromBase64String(LastPacket.Data[0]), Convert.FromBase64String(LastPacket.Data[1]), DateTime.Parse(LastPacket.Data[2].Replace('-', ':')), Convert.FromBase64String(LastPacket.Data[3]));
+			return new RsaKey(Convert.FromBase64String(packet.Data[0]), Convert.FromBase64String(packet.Data[1]), DateTime.Parse(packet.Data[2].Replace('-', ':')), Convert.FromBase64String(packet.Data[3]));
 		}
 
 		/// <summary>
@@ -223,8 +223,8 @@ namespace P2PQuakeClient.Connections
 		public async Task<bool> SendEcho(int peerId, int connectingCount)
 		{
 			await SendPacket(new EpspPacket(123, 1, peerId.ToString(), connectingCount.ToString()));
-			await WaitNextPacket(243, 299);
-			return LastPacket.Code == 243;
+			var packet = await WaitNextPacket(243, 299);
+			return packet.Code == 243;
 		}
 	}
 }

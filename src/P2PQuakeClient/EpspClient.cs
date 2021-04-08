@@ -22,11 +22,7 @@ namespace P2PQuakeClient
 			ServerHosts = serverHosts ?? throw new ArgumentNullException(nameof(serverHosts));
 			Logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-			ClientInfo = new ClientInformation("0.34r2", "P2PQuakeClient@ingen084", Assembly.GetEntryAssembly().GetName().Version.ToString()
-#if DEBUG
-				+ "_DEBUG"
-#endif
-				);
+			ClientInfo = new ClientInformation("0.34", "ingenP2PQTest", "alpha1");
 			PeerController = new PeerController(this);
 		}
 

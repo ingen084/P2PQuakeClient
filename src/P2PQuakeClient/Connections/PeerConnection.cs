@@ -24,15 +24,16 @@ namespace P2PQuakeClient.Connections
 			{
 				case var code when (code / 100) == 5:
 					DataReceived?.Invoke(packet);
-					break;
+					return;
 				case 611: //echo
 					await SendPacket(new EpspPacket(631, 1));
-					ManualResetEvent.Set();
 					return;
 				case 615:
 				case 635:
 					DataReceived?.Invoke(packet);
 					break;
+				case 694:
+					throw new EpspNonCompliantProtocolException("こちらのピア側のプロトコルバージョンが古いため、正常に接続できませんでした");
 			}
 			base.OnReceive(packet);
 		}
@@ -58,25 +59,24 @@ namespace P2PQuakeClient.Connections
 		Timer EchoTimer;
 		public async Task<ClientInformation> ConnectAndExchangeClientInformation(ClientInformation information)
 		{
+			EpspPacket clientVersionPacket = null;
 
 			if (IsHosted)
 			{
-				await StartReceive();
+				StartReceive();
 				await SendPacket(new EpspPacket(614, 1, information.ToPacketData()));
-				await WaitNextPacket(634, 694);
+				clientVersionPacket = await WaitNextPacket(634);
+
 				// TODO: 634であればバージョンチェック
 			}
 			else
 			{
-				await StartReceive(614);
-				//await WaitNextPacket(614);
+				StartReceive();
+				clientVersionPacket = await WaitNextPacket(614);
 				// TODO: バージョンチェック
 				await SendPacket(new EpspPacket(634, 1, information.ToPacketData()));
 			}
-
-			if (LastPacket.Code == 694)
-				throw new EpspVersionObsoletedException("こちらのピア側のプロトコルバージョンが古いため、正常に接続できませんでした。");
-			if (LastPacket.Data.Length < 3)
+			if (clientVersionPacket.Data.Length < 3)
 				throw new EpspException("ピアから正常なレスポンスがありせんでした。");
 
 			EchoTimer = new Timer(150 * 1000);
@@ -95,7 +95,7 @@ namespace P2PQuakeClient.Connections
 			EchoTimer.Start();
 
 			Established = true;
-			return new ClientInformation(LastPacket.Data[0], LastPacket.Data[1], LastPacket.Data[2]);
+			return new ClientInformation(clientVersionPacket.Data[0], clientVersionPacket.Data[1], clientVersionPacket.Data[2]);
 		}
 
 		/// <summary>
@@ -111,11 +111,11 @@ namespace P2PQuakeClient.Connections
 				return;
 			}
 			await SendPacket(new EpspPacket(612, 1));
-			await WaitNextPacket(632);
+			var peerIdPacket = await WaitNextPacket(632);
 
-			if (LastPacket.Data.Length < 1)
+			if (peerIdPacket.Data.Length < 1)
 				throw new EpspException("ピアから正常なレスポンスがありせんでした。");
-			if (!int.TryParse(LastPacket.Data[0], out var id))
+			if (!int.TryParse(peerIdPacket.Data[0], out var id))
 				throw new EpspException("ピアから送信されたIDをパースすることができませんでした。");
 			PeerId = id;
 		}

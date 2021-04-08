@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
@@ -29,7 +30,7 @@ namespace P2PQuakeClient.Connections
 		byte[] ReceiveBuffer { get; }
 		PacketSplitter Splitter { get; }
 
-		Task ConnectionTask { get; set; }
+		Thread ConnectionThread { get; set; }
 		CancellationTokenSource TokenSource { get; }
 
 		string Host { get; }
@@ -52,11 +53,11 @@ namespace P2PQuakeClient.Connections
 		}
 
 		protected ManualResetEventSlim ManualResetEvent { get; } = new ManualResetEventSlim();
-		public async ValueTask StartReceive(params int[] allowCodes)
+		public void StartReceive()
 		{
-			if (ConnectionTask != null)
+			if (ConnectionThread != null)
 				throw new InvalidOperationException("すでに受信は開始済みです。");
-			Connected += () => ManualResetEvent.Set();
+			// Connected += () => ManualResetEvent.Set();
 			Disconnected += () => ManualResetEvent.Set();
 			if (!TcpClient.Connected)
 			{
@@ -64,14 +65,10 @@ namespace P2PQuakeClient.Connections
 					throw new SocketException(10060);
 				Connected?.Invoke();
 			}
-			ManualResetEvent.Reset();
-			ConnectionTask = new Task(ReceiveTask().Wait, TokenSource.Token, TaskCreationOptions.LongRunning);
-			ConnectionTask.Start();
-			if (allowCodes == null || allowCodes.Length <= 0)
-				return;
-			await WaitNextPacketWithSkipReset(allowCodes);
+			ConnectionThread = new Thread(new ParameterizedThreadStart(ReceiveTask));
+			ConnectionThread.Start();
 		}
-		private async Task ReceiveTask()
+		private async void ReceiveTask(object _)
 		{
 			try
 			{
@@ -97,33 +94,36 @@ namespace P2PQuakeClient.Connections
 			}
 			Disconnect();
 		}
-
-		protected EpspPacket LastPacket { get; set; }
+		protected ConcurrentQueue<EpspPacket> PacketQuete { get; } = new();
 		protected virtual void OnReceive(EpspPacket packet)
 		{
 			if (this is ServerConnection)
-				Console.WriteLine("↓ " + packet.ToPacketString());
+				Console.WriteLine(GetHashCode() + "↓ " + packet.ToPacketString());
 			else
-				Console.WriteLine("P↓ " + packet.ToPacketString());
-			LastPacket = packet;
+				Console.WriteLine(GetHashCode() + "P↓ " + packet.ToPacketString());
+			PacketQuete.Enqueue(packet);
 			ManualResetEvent.Set();
 		}
 
-		protected async Task WaitNextPacket(params int[] allowPacketCodes)
+		protected Task<EpspPacket> WaitNextPacket(params int[] allowPacketCodes)
+			=> WaitNextPacketWithSkipReset(allowPacketCodes);
+		protected async Task<EpspPacket> WaitNextPacketWithSkipReset(params int[] allowPacketCodes)
 		{
-			ManualResetEvent.Reset();
-			await WaitNextPacketWithSkipReset(allowPacketCodes);
-		}
-		protected async Task WaitNextPacketWithSkipReset(params int[] allowPacketCodes)
-		{
-			if (!await Task.Run(() => ManualResetEvent.Wait(10000)))
-				throw new EpspException("要求がタイムアウトしました。");
-			if (LastPacket == null) //nullの場合は接続失敗
-				throw new EpspException("接続に失敗しました。");
-			if (LastPacket.Code == 298)
+			if (
+				PacketQuete.IsEmpty &&
+				!await Task.Run(() =>
+				{
+					ManualResetEvent.Reset();
+					return ManualResetEvent.Wait(10000);
+				}))
+				throw new EpspException(GetHashCode() + "要求がタイムアウトしました。");
+			if (!PacketQuete.TryDequeue(out var lastPacket)) // TODO: なおす
+				throw new EpspException(GetHashCode() + "dequeueに失敗しました");
+			if (lastPacket.Code == 298)
 				throw new EpspNonCompliantProtocolException("クライアントが仕様に準拠していないようです。");
-			if (!allowPacketCodes.Contains(LastPacket.Code))
-				throw new EpspException("接続先から期待しているレスポンスがありせんでした。: " + LastPacket.Code);
+			if (!allowPacketCodes.Contains(lastPacket.Code))
+				throw new EpspException("接続先から期待しているレスポンスがありせんでした。: " + lastPacket.Code);
+			return lastPacket;
 		}
 
 		public async Task SendPacket(EpspPacket packet)
@@ -135,12 +135,12 @@ namespace P2PQuakeClient.Connections
 					Disconnect();
 					return;
 				}
-				if (this is ServerConnection)
-					Console.WriteLine("↑ " + packet.ToPacketString());
-				else if (packet.Code / 100 == 5)
-					Console.WriteLine("P↑ " + packet.Code);
+				//if (this is ServerConnection)
+				//	Console.WriteLine(GetHashCode() + "↑ " + packet.ToPacketString());
+				//else// if (packet.Code / 100 == 5)
+				//	Console.WriteLine(GetHashCode() + "P↑ " + packet.ToPacketString());
 				byte[] buffer = Splitter.Encoding.GetBytes(packet.ToPacketString() + "\r\n");
-				await Stream.WriteAsync(buffer, 0, buffer.Length);
+				await Stream.WriteAsync(buffer.AsMemory(0, buffer.Length));
 			}
 			catch (Exception ex) when (ex is IOException || ex is SocketException)
 			{
@@ -168,6 +168,7 @@ namespace P2PQuakeClient.Connections
 			if (!TokenSource.IsCancellationRequested)
 				Disconnect();
 			TcpClient?.Dispose();
+			GC.SuppressFinalize(this);
 		}
 	}
 }

@@ -18,7 +18,7 @@ namespace P2PQuakeClient
 			if (!int.TryParse(message.Substring(0, 3), out var code))
 				throw new EpspException("コードの解析に失敗しました。");
 			Code = code;
-			var hopCountEndindex = message.Substring(4).IndexOf(' ');
+			var hopCountEndindex = message[4..].IndexOf(' ');
 			if (hopCountEndindex == -1)
 				hopCountEndindex = message.Length - 4;
 			if (!uint.TryParse(message.Substring(4, hopCountEndindex), out var hopCount))
@@ -26,7 +26,7 @@ namespace P2PQuakeClient
 			HopCount = hopCount;
 			if (hopCountEndindex == message.Length - 4)
 				return;
-			Data = message.Substring(hopCountEndindex + 5).Split(':');
+			Data = message[(hopCountEndindex + 5)..].Split(':');
 		}
 		/// <summary>
 		/// 各種パラメタからパケットを生成します。
@@ -63,7 +63,7 @@ namespace P2PQuakeClient
 		/// インスタンスからパケット文字列を生成します。
 		/// </summary>
 		/// <returns>生成されたパケット文字列</returns>
-		public string ToPacketString() => $"{Code.ToString("000")} {HopCount}{((Data?.Length ?? 0) > 0 ? " " + string.Join(':', Data) : "")}";
+		public string ToPacketString() => $"{Code:000} {HopCount}{((Data?.Length ?? 0) > 0 ? " " + string.Join(':', Data) : "")}";
 
 		/// <summary>
 		/// パケットのインスタンスを複製します。
@@ -71,6 +71,6 @@ namespace P2PQuakeClient
 		/// </summary>
 		/// <returns>複製されたパケット</returns>
 		public EpspPacket Clone()
-			=> new EpspPacket(Code, HopCount, Data);
+			=> new(Code, HopCount, Data);
 	}
 }

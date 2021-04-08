@@ -22,7 +22,7 @@ namespace P2PQuakeClient.Sandbox
 					"p2pquake.ddo.jp"
 				};
 
-				var client = new EpspClient(new EasyConsoleLogger(), hosts, 901, 6911, 100);
+				var client = new EpspClient(new EasyConsoleLogger(), hosts, 901, 14625, 100);
 				client.DataReceived += (v, d) =>
 				{
 					Console.WriteLine("**データ受信 " + d.Code);

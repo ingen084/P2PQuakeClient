@@ -12,8 +12,8 @@ namespace P2PQuakeClient
 		private static readonly byte[] ServerPublicKey = Convert.FromBase64String("MIGdMA0GCSqGSIb3DQEBAQUAA4GLADCBhwKBgQC8p/vth2yb/k9x2/PcXKdb6oI3gAbhvr/HPTOwla5tQHB83LXNF4Y+Sv/Mu4Uu0tKWz02FrLgA5cuJZfba9QNULTZLTNUgUXIB0m/dq5Rx17IyCfLQ2XngmfFkfnRdRSK7kGnIXvO2/LOKD50JsTf2vz0RQIdw6cEmdl+Aga7i8QIBEQ==");
 		private static readonly byte[] PeerPublicKey = Convert.FromBase64String("MIGdMA0GCSqGSIb3DQEBAQUAA4GLADCBhwKBgQDTJKLLO7wjCHz80kpnisqcPDQvA9voNY5QuAA+bOWeqvl4gmPSiylzQZzldS+n/M5p4o1PRS24WAO+kPBHCf4ETAns8M02MFwxH/FlQnbvMfi9zutJkQAu3Hq4293rHz+iCQW/MWYB5IfzFBnWtEdjkhqHsGy6sZMMe+qx/F1rcQIBEQ==");
 
-		private static readonly SHA1Managed SHA1 = new SHA1Managed();
-		private static readonly MD5CryptoServiceProvider MD5 = new MD5CryptoServiceProvider();
+		private static readonly SHA1Managed SHA1 = new();
+		private static readonly MD5CryptoServiceProvider MD5 = new();
 		private static readonly Encoding SJIS = Encoding.GetEncoding(932);
 
 		#region Verifier

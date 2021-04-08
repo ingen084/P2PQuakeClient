@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Nyamikan.Asn1PKCS" Version="0.1.1" />
-    <PackageReference Include="System.Text.Encoding.CodePages" Version="4.5.1" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="5.0.0" />
   </ItemGroup>
 
 </Project>
