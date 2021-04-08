@@ -62,7 +62,7 @@ namespace P2PQuakeClient.Connections
 			if (!TcpClient.Connected)
 			{
 				if (!TcpClient.ConnectAsync(Host, Port).Wait(2000))
-					throw new SocketException(10060);
+					throw new EpspException("接続がタイムアウトしました");
 				Connected?.Invoke();
 			}
 			ConnectionThread = new Thread(new ParameterizedThreadStart(ReceiveTask));
@@ -97,10 +97,10 @@ namespace P2PQuakeClient.Connections
 		protected ConcurrentQueue<EpspPacket> PacketQuete { get; } = new();
 		protected virtual void OnReceive(EpspPacket packet)
 		{
-			if (this is ServerConnection)
-				Console.WriteLine(GetHashCode() + "↓ " + packet.ToPacketString());
-			else
-				Console.WriteLine(GetHashCode() + "P↓ " + packet.ToPacketString());
+			//if (this is ServerConnection)
+			//	Console.WriteLine(GetHashCode() + "↓ " + packet.ToPacketString());
+			//else
+			//	Console.WriteLine(GetHashCode() + "P↓ " + packet.ToPacketString());
 			PacketQuete.Enqueue(packet);
 			ManualResetEvent.Set();
 		}
@@ -116,9 +116,9 @@ namespace P2PQuakeClient.Connections
 					ManualResetEvent.Reset();
 					return ManualResetEvent.Wait(10000);
 				}))
-				throw new EpspException(GetHashCode() + "要求がタイムアウトしました。");
+				throw new EpspException("要求がタイムアウトしました。");
 			if (!PacketQuete.TryDequeue(out var lastPacket)) // TODO: なおす
-				throw new EpspException(GetHashCode() + "dequeueに失敗しました");
+				throw new EpspException("パケットを受信できませんでした");
 			if (lastPacket.Code == 298)
 				throw new EpspNonCompliantProtocolException("クライアントが仕様に準拠していないようです。");
 			if (!allowPacketCodes.Contains(lastPacket.Code))
