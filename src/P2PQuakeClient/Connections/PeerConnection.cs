@@ -15,7 +15,7 @@ namespace P2PQuakeClient.Connections
 		public PeerConnection(string host, int port, int peerId) : base(host, port)
 		{
 			IsHosted = false;
-			PeerId = peerId;
+			Id = peerId;
 		}
 
 		protected override async void OnReceive(EpspPacket packet)
@@ -49,7 +49,7 @@ namespace P2PQuakeClient.Connections
 		/// <summary>
 		/// ピアID
 		/// </summary>
-		public int PeerId { get; private set; }
+		public int Id { get; private set; }
 		/// <summary>
 		/// 伝送すべき情報を受信した
 		/// 500･600番代の調査パケットをやり取りします
@@ -117,7 +117,7 @@ namespace P2PQuakeClient.Connections
 				throw new EpspException("ピアから正常なレスポンスがありせんでした。");
 			if (!int.TryParse(peerIdPacket.Data[0], out var id))
 				throw new EpspException("ピアから送信されたIDをパースすることができませんでした。");
-			PeerId = id;
+			Id = id;
 		}
 
 		/// <summary>

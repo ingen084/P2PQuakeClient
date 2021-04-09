@@ -1,12 +1,10 @@
 ﻿using P2PQuakeClient.Connections;
 using P2PQuakeClient.PacketData;
-using P2PQuakeClient.SignedData;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,7 +12,7 @@ namespace P2PQuakeClient
 {
 	public class EpspClient
 	{
-		public EpspClient(IEpspLogger logger, string[] serverHosts, int areaCode, ushort listenPort, int maxConnectablePeerCount)
+		public EpspClient(IEpspLogger logger, string[] serverHosts, int areaCode, ushort? listenPort = null, int maxConnectablePeerCount = 5)
 		{
 			MaxConnectablePeerCount = maxConnectablePeerCount;
 			AreaCode = areaCode;
@@ -24,13 +22,13 @@ namespace P2PQuakeClient
 
 			ClientInfo = new ClientInformation("0.34", "ingenP2PQTest", "alpha1");
 			PeerController = new PeerController(this);
+			PeerController.PeerCountChanged += () => StateUpdated?.Invoke();
 		}
 
 		/// <summary>
 		/// データを受信した
-		/// <para>bool: ライブラリ側で検証済みかどうか</param>
-		/// <para>int: コード</param>
-		/// <para>string[]: パケットのデータ 鍵も含みます</para>
+		/// <para>bool: 署名検証済みかどうか</param>
+		/// <para>EpspPacket: パケットのデータ 鍵も含みます</para>
 		/// </summary>
 		public event Action<bool, EpspPacket> DataReceived;
 		internal void OnDataReceived(bool validated, EpspPacket packet)
@@ -39,19 +37,61 @@ namespace P2PQuakeClient
 		internal PeerController PeerController { get; }
 		internal IEpspLogger Logger { get; }
 		private readonly string[] ServerHosts;
-		public bool IsNetworkJoined { get; private set; }
+
+		private bool isNetworkJoined = false;
+		public bool IsNetworkJoined
+		{
+			get => isNetworkJoined;
+			private set
+			{
+				if (isNetworkJoined == value)
+					return;
+				isNetworkJoined = value;
+				StateUpdated.Invoke();
+			}
+		}
+
+		// TODO: PropertyCahngedのほうがよかったな
+		public event Action StateUpdated;
+		public int PeerCount => PeerController.Count;
+
+		private int totalNetworkPeerCount = 0;
+		public int TotalNetworkPeerCount
+		{
+			get => totalNetworkPeerCount;
+			internal set
+			{
+				if (totalNetworkPeerCount == value)
+					return;
+				totalNetworkPeerCount = value;
+				StateUpdated?.Invoke();
+			}
+		}
 
 		public ClientInformation ClientInfo { get; set; }
 
 		public int AreaCode { get; }
 		public int MaxConnectablePeerCount { get; }
 		public int MinimumKeepPeerCount { get; set; } = 5;
-		public ushort ListenPort { get; }
+		public ushort? ListenPort { get; }
 		private Task ListenerTask { get; set; }
 
 		public int PeerId { get; private set; }
-		public RsaKey RsaKey { get; private set; }
+		private RsaKey rsaKey;
+		public RsaKey RsaKey
+		{
+			get => rsaKey;
+			private set
+			{
+				if (rsaKey == value)
+					return;
+				rsaKey = value;
+				StateUpdated?.Invoke();
+			}
+		}
+
 		public bool IsPortForwarded { get; private set; }
+
 		public TimeSpan ProtocolTimeOffset { get; private set; }
 		public DateTime ProtocolTime => DateTime.Now + ProtocolTimeOffset;
 
@@ -89,7 +129,12 @@ namespace P2PQuakeClient
 
 		private void Listener()
 		{
-			TcpListener = new TcpListener(IPAddress.Any, ListenPort);
+			if (ListenPort is not ushort listenPort)
+			{
+				Logger.Info($"ポートのListenは無効化されています");
+				return;
+			}
+			TcpListener = new TcpListener(IPAddress.Any, listenPort);
 			TcpListener.Start();
 			Logger.Info($"ポート{ListenPort} でListenを開始しました。");
 			try
@@ -140,9 +185,6 @@ namespace P2PQuakeClient
 			}
 			Logger.Info("ネットワークに参加しています。");
 
-			ListenerTask = new Task(Listener, CancellationToken.None, TaskCreationOptions.LongRunning);
-			ListenerTask.Start();
-
 			var server = await ConnectServerAndHandshakeAsync();
 			if (server == null)
 			{
@@ -151,15 +193,22 @@ namespace P2PQuakeClient
 			}
 			PeerId = await server.GetTemporaryPeerId();
 			Logger.Info($"仮ピアIDが割り当てられました: {PeerId}");
-			Logger.Debug($"ポート開放チェックをしています…");
-			IsPortForwarded = await server.CheckPortForwarding(PeerId, ListenPort);
-			Logger.Info($"ポートは開放されていま{(IsPortForwarded ? "" : "せんで")}した。");
+
+
+			if (ListenPort is ushort listenPort)
+			{
+				ListenerTask = new Task(Listener, CancellationToken.None, TaskCreationOptions.LongRunning);
+				ListenerTask.Start();
+				Logger.Debug($"ポート開放チェックをしています…");
+				IsPortForwarded = await server.CheckPortForwarding(PeerId, listenPort);
+				Logger.Info($"ポートは開放されていま{(IsPortForwarded ? "" : "せんで")}した。");
+			}
 
 			Logger.Info("ピアに接続しています。");
 			await GetAndConnectPeerAsync(server);
 
-			var peerCount = await server.RegistPeerInfo(PeerId, ListenPort, AreaCode, PeerController.Count, MaxConnectablePeerCount);
-			Logger.Info($"本ピアIDとして登録しました。 総参加数: {peerCount}");
+			TotalNetworkPeerCount = await server.RegistPeerInfo(PeerId, ListenPort ?? 6911, AreaCode, PeerController.Count, MaxConnectablePeerCount);
+			Logger.Info($"本ピアIDとして登録しました。 総参加数: {TotalNetworkPeerCount}");
 			IsNetworkJoined = true;
 			if ((RsaKey = await server.GetRsaKey(PeerId)) == null)
 				Logger.Warning("鍵の取得に失敗しました。");
@@ -297,7 +346,7 @@ namespace P2PQuakeClient
 				 lock (connectedPeers)
 					 connectedPeers.Add(peer);
 			 }));
-			await server.NoticeConnectedPeerIds(connectedPeers.Select(p => p.PeerId).ToArray());
+			await server.NoticeConnectedPeerIds(connectedPeers.Select(p => p.Id).ToArray());
 		}
 	}
 }

@@ -22,11 +22,25 @@ namespace P2PQuakeClient.Sandbox
 					"p2pquake.ddo.jp"
 				};
 
-				var client = new EpspClient(new EasyConsoleLogger(), hosts, 901, 14625, 100);
+				var client = new EpspClient(new EasyConsoleLogger(), hosts, 901, null, 100)
+				{
+					//MinimumKeepPeerCount = 10
+				};
 				client.DataReceived += (v, d) =>
 				{
-					Console.WriteLine("**データ受信 " + d.Code);
+					Console.WriteLine($"**データ受信 {d.Code} hop:{d.HopCount} data:{string.Join(':', d.Data)}");
 				};
+
+				void UpdateTitle()
+				{
+					Console.Title = $"P2P地震情報 テストクライアント 接続/総ピア:{client.PeerCount}/{client.TotalNetworkPeerCount} ネットワーク:{(client.IsNetworkJoined ? "接続中" : "未接続")} ポート:{(client.IsPortForwarded ? "解放済" : "未開放")} 鍵:{(client.RsaKey == null ? "未取得" : "取得済み")}";
+				}
+				UpdateTitle();
+				client.StateUpdated += () =>
+				{
+					UpdateTitle();
+				};
+
 				if (!await client.JoinNetworkAsync())
 				{
 					Console.WriteLine("**Join失敗**");

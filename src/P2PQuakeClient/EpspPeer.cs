@@ -26,7 +26,7 @@ namespace P2PQuakeClient
 		public PeerConnection Connection { get; private set; }
 		public bool IsConnected => Connection?.IsConnected ?? false;
 		public ClientInformation ClientInformation { get; private set; }
-		public int PeerId => Connection?.PeerId ?? default;
+		public int Id => Connection?.Id ?? default;
 
 		public async Task<bool> ConnectAndHandshakeAsync()
 		{
@@ -42,7 +42,7 @@ namespace P2PQuakeClient
 				if (Connection.IsConnected)
 				{
 					await Connection.ExchangePeerId(EpspClient.PeerId);
-					Logger.Info($"ピア{PeerId} を登録しました。 {ClientInformation.SoftwareName}-{ClientInformation.SoftwareVersion} (v{ClientInformation.ProtocolVersion}) 現在の接続数:{EpspClient.PeerController.Count + 1}");
+					Logger.Info($"ピア{Id} を登録しました。 {ClientInformation.SoftwareName}-{ClientInformation.SoftwareVersion} (v{ClientInformation.ProtocolVersion}) 現在の接続数:{EpspClient.PeerController.Count + 1}");
 					return true;
 				}
 			}

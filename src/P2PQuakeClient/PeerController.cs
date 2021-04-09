@@ -16,6 +16,8 @@ namespace P2PQuakeClient
 			Client = client ?? throw new ArgumentNullException(nameof(client));
 		}
 
+		public event Action PeerCountChanged;
+
 		private List<EpspPeer> Peers { get; } = new List<EpspPeer>();
 		public int Count => Peers.Count;
 
@@ -27,7 +29,7 @@ namespace P2PQuakeClient
 		public bool CheckDuplicatePeer(int peerId)
 		{
 			lock (Peers)
-				return Peers.Any(p2 => p2.PeerId == peerId);
+				return Peers.Any(p2 => p2.Id == peerId);
 		}
 
 		public async Task<bool> AddPeer(EpspPeer peer)
@@ -37,11 +39,13 @@ namespace P2PQuakeClient
 				peer.Connection.DataReceived += p => DataReceived(peer, p);
 				lock (Peers)
 					Peers.Add(peer);
+				PeerCountChanged?.Invoke();
 				peer.Connection.Disconnected += () =>
 				{
-					Client.Logger.Info($"{(peer.Connection.Established ? "" : "未完了状態の")}ピア{(peer.PeerId == default ? "" : (peer.PeerId + " "))}が切断しました。");
+					Client.Logger.Info($"{(peer.Connection.Established ? "" : "未完了状態の")}ピア{(peer.Id == default ? "" : (peer.Id + " "))}が切断しました。");
 					lock (Peers)
 						Peers.Remove(peer);
+					PeerCountChanged?.Invoke();
 				};
 				return true;
 			}
@@ -59,7 +63,7 @@ namespace P2PQuakeClient
 				 || !int.TryParse(packet.Data[0], out var senderId)
 				 || !long.TryParse(packet.Data[1], out var uniqueNumber))
 				{
-					Client.Logger.Warning($"{peer.PeerId} から無効な調査エコーを受け取りました。");
+					Client.Logger.Warning($"{peer.Id} から無効な調査エコーを受け取りました。");
 					return;
 				}
 
@@ -67,7 +71,7 @@ namespace P2PQuakeClient
 				{
 					if (EchoHistories.ContainsKey((senderId, uniqueNumber)))
 						return;
-					EchoHistories.Add((senderId, uniqueNumber), peer.PeerId);
+					EchoHistories.Add((senderId, uniqueNumber), peer.Id);
 					if (EchoHistories.Count > 100)
 						EchoHistories.Remove(EchoHistories.Keys.First());
 				}
@@ -75,7 +79,7 @@ namespace P2PQuakeClient
 				await Task.WhenAll(Peers.Where(p => p != peer).Select(p => p.Connection.SendPacket(packet)));
 
 				// 調査エコーで指定されていた発信元ピアID  一意な数  自らのピアID  接続中のピアID(カンマ区切り)  調査エコーが届いた経由数
-				await peer.Connection.SendPacket(new EpspPacket(635, 1, packet.Data[0], packet.Data[1], Client.PeerId.ToString(), string.Join(',', Peers.Select(p => p.PeerId.ToString())), (packet.HopCount - 1).ToString()));
+				await peer.Connection.SendPacket(new EpspPacket(635, 1, packet.Data[0], packet.Data[1], Client.PeerId.ToString(), string.Join(',', Peers.Select(p => p.Id.ToString())), (packet.HopCount - 1).ToString()));
 				return;
 			}
 			if (packet.Code == 635)
@@ -84,7 +88,7 @@ namespace P2PQuakeClient
 				 || !int.TryParse(packet.Data[0], out var senderId)
 				 || !long.TryParse(packet.Data[1], out var uniqueNumber))
 				{
-					Client.Logger.Warning($"{peer.PeerId} から無効な調査エコー返答を受け取りました。");
+					Client.Logger.Warning($"{peer.Id} から無効な調査エコー返答を受け取りました。");
 					return;
 				}
 
@@ -92,7 +96,7 @@ namespace P2PQuakeClient
 				lock (EchoHistories)
 					if (!EchoHistories.ContainsKey((senderId, uniqueNumber)))
 					{
-						Client.Logger.Debug($"{peer.PeerId} からバッファにない調査エコーを受け取りました。");
+						Client.Logger.Debug($"{peer.Id} からバッファにない調査エコーを受け取りました。");
 						return;
 					}
 
@@ -101,7 +105,7 @@ namespace P2PQuakeClient
 				var fromPeerId = EchoHistories[(senderId, uniqueNumber)];
 				EpspPeer fromPeer = null;
 				lock (Peers)
-					fromPeer = Peers.FirstOrDefault(p => p.PeerId == fromPeerId);
+					fromPeer = Peers.FirstOrDefault(p => p.Id == fromPeerId);
 				if (fromPeer == null)
 					await Task.WhenAll(Peers.Where(p => p != peer).Select(p => p.Connection.SendPacket(packet)));
 				else
@@ -110,7 +114,7 @@ namespace P2PQuakeClient
 			// 500番台
 			if (packet.Data.Length < 3)
 			{
-				Client.Logger.Warning($"{peer.PeerId} から不正な500番台パケットを受け取りました。");
+				Client.Logger.Warning($"{peer.Id} から不正な500番台パケットを受け取りました。");
 				return;
 			}
 
@@ -126,7 +130,8 @@ namespace P2PQuakeClient
 			// 受信した時点で再送させる
 			var nextPacket = packet.Clone();
 			nextPacket.HopCount++;
-			await Task.WhenAll(Peers.Where(p => p != peer).Select(p => p.Connection.SendPacket(nextPacket)));
+			// どれかに送信できれば次の処理へ
+			await Task.WhenAny(Peers.Where(p => p != peer).Select(p => p.Connection.SendPacket(nextPacket)).ToArray());
 
 			bool validated = false;
 			switch (packet.Code)
@@ -147,10 +152,24 @@ namespace P2PQuakeClient
 							return;
 						if (!RsaCryptoService.VerifyServerData(new ServerSignedData(targetData, expirationTime, Convert.FromBase64String(packet.Data[0])), Client.ProtocolTime))
 						{
-							Client.Logger.Warning($"{peer.PeerId} からの伝送パケットの署名の検証に失敗しました。\n{packet.ToPacketString()}");
+							Client.Logger.Warning($"{peer.Id} からの伝送パケットの署名の検証に失敗しました。\n{packet.ToPacketString()}");
 							return;
 						}
 						validated = true;
+
+						// 各地域ピア数のパケットの場合集計する
+						if (packet.Code == 561)
+						{
+							var data = targetData.Split(';');
+							int total = 0;
+							foreach (var datum in data)
+							{
+								var areaInfo = datum.Split(',');
+								if (areaInfo.Length >= 2 && int.TryParse(areaInfo[1], out var count))
+									total += count;
+							}
+							Client.TotalNetworkPeerCount = total;
+						}
 					}
 					break;
 				case 555:
@@ -161,17 +180,16 @@ namespace P2PQuakeClient
 							return;
 						if (!RsaCryptoService.VerifyPeerData(new PeerSignedData(packet.Data[5], Convert.FromBase64String(packet.Data[0]), expirationTime, Convert.FromBase64String(packet.Data[2]), Convert.FromBase64String(packet.Data[3]), keyExpirationTime), Client.ProtocolTime))
 						{
-							Client.Logger.Warning($"{peer.PeerId} からの地震感知情報の署名の検証に失敗しました。\n{packet.ToPacketString()}");
+							Client.Logger.Warning($"{peer.Id} からの地震感知情報の署名の検証に失敗しました。\n{packet.ToPacketString()}");
 							return;
 						}
 						validated = true;
 					}
 					break;
 				default:
-					Client.Logger.Warning($"{peer.PeerId} から未定義の伝送系パケットを受信しました。");
+					Client.Logger.Warning($"{peer.Id} から未定義の伝送系パケットを受信しました。");
 					break;
 			}
-			//Client.Logger.Trace($"{peer.PeerId} DataReceived 500- {(validated ? "**VALIDATED" : "")}");
 
 			Client.OnDataReceived(validated, packet);
 		}
@@ -187,8 +205,7 @@ namespace P2PQuakeClient
 					if (DataSignatureHistories.Count > 100)
 						DataSignatureHistories.RemoveAt(0);
 				}
-			foreach (var peer in Peers)
-				await peer.Connection?.SendPacket(packet);
+			await Task.WhenAll(Peers.Select(peer => peer.Connection?.SendPacket(packet)).ToArray());
 		}
 
 		public void DisconnectAllPeers()
