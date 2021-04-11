@@ -12,4 +12,4 @@ RUN dotnet publish -c release -o /app
 FROM mcr.microsoft.com/dotnet/runtime:5.0
 WORKDIR /app
 COPY --from=build /app ./
-ENTRYPOINT ["dotnet", "P2PQuakeClient.dll"]
+ENTRYPOINT ["dotnet", "P2PQuakeClient.Sandbox.dll"]
