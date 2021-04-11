@@ -50,6 +50,7 @@ namespace P2PQuakeClient.Sandbox
 				}
 				try
 				{
+					// TODO: ゆらぎをもたせる
 					using var timer = new Timer(async (s) =>
 					{
 						try

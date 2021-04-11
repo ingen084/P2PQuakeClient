@@ -79,6 +79,8 @@ namespace P2PQuakeClient.Connections
 			if (clientVersionPacket.Data == null || clientVersionPacket.Data.Length < 3)
 				throw new EpspException("ピアから正常なレスポンスがありせんでした。");
 
+			// TODO: ゆらぎをもたせる
+			// TODO: watchdog timer の追加
 			EchoTimer = new Timer(150 * 1000);
 			EchoTimer.Elapsed += async (s, e) =>
 			{
