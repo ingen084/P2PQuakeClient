@@ -100,8 +100,8 @@ namespace P2PQuakeClient.Connections
 		protected ConcurrentQueue<EpspPacket> PacketQuete { get; } = new();
 		protected virtual void OnReceive(EpspPacket packet)
 		{
-			if (this is PeerConnection pc && pc.IsHosted)
-				Console.WriteLine(GetHashCode() + " PH↓ " + packet.ToPacketString());
+			//if (this is PeerConnection pc && pc.IsHosted)
+			//	Console.WriteLine(GetHashCode() + " PH↓ " + packet.ToPacketString());
 			//else
 			//	Console.WriteLine(GetHashCode() + "P↓ " + packet.ToPacketString());
 			PacketQuete.Enqueue(packet);
@@ -138,8 +138,8 @@ namespace P2PQuakeClient.Connections
 					Disconnect();
 					return;
 				}
-				if (this is PeerConnection pc && pc.IsHosted)
-					Console.WriteLine(GetHashCode() + " PH↑ " + packet.ToPacketString());
+				//if (this is PeerConnection pc && pc.IsHosted)
+				//	Console.WriteLine(GetHashCode() + " PH↑ " + packet.ToPacketString());
 				//else// if (packet.Code / 100 == 5)
 				//	Console.WriteLine(GetHashCode() + "P↑ " + packet.ToPacketString());
 				byte[] buffer = Splitter.Encoding.GetBytes(packet.ToPacketString() + "\r\n");
