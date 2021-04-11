@@ -74,7 +74,7 @@ namespace P2PQuakeClient
 		public int MaxConnectablePeerCount { get; }
 		public int MinimumKeepPeerCount { get; set; } = 5;
 		public ushort? ListenPort { get; }
-		private Task? ListenerTask { get; set; }
+		private Thread? ListenerThread { get; set; }
 
 		public int PeerId { get; private set; }
 		private RsaKey? rsaKey;
@@ -96,6 +96,7 @@ namespace P2PQuakeClient
 		public DateTime ProtocolTime => DateTime.Now + ProtocolTimeOffset;
 
 		private TcpListener? TcpListener { get; set; }
+		private ManualResetEventSlim ListenerMre { get; } = new(false);
 
 		private async Task<ServerConnection?> ConnectServerAndHandshakeAsync()
 		{
@@ -137,6 +138,7 @@ namespace P2PQuakeClient
 			TcpListener = new TcpListener(IPAddress.Any, listenPort);
 			TcpListener.Start();
 			Logger.Info($"ポート{ListenPort} でListenを開始しました。");
+			ListenerMre.Set();
 			try
 			{
 				while (true)
@@ -204,8 +206,9 @@ namespace P2PQuakeClient
 
 			if (ListenPort is ushort listenPort)
 			{
-				ListenerTask = new Task(Listener, CancellationToken.None, TaskCreationOptions.LongRunning);
-				ListenerTask.Start();
+				ListenerThread = new Thread(Listener);
+				ListenerThread.Start();
+				ListenerMre.Wait();
 				Logger.Debug($"ポート開放チェックをしています…");
 				IsPortForwarded = await server.CheckPortForwarding(PeerId, listenPort);
 				Logger.Info($"ポートは開放されていま{(IsPortForwarded ? "" : "せんで")}した。");
