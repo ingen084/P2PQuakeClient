@@ -34,7 +34,7 @@ namespace P2PQuakeClient
 		/// <param name="code">コード</param>
 		/// <param name="hopCount">経由数</param>
 		/// <param name="data">パケットのデータ</param>
-		public EpspPacket(int code, uint hopCount, params string[] data)
+		public EpspPacket(int code, uint hopCount, params string[]? data)
 		{
 			Code = code;
 			HopCount = hopCount;
@@ -57,13 +57,13 @@ namespace P2PQuakeClient
 		/// <summary>
 		/// パケットのデータ
 		/// </summary>
-		public string[] Data { get; set; }
+		public string[]? Data { get; set; }
 
 		/// <summary>
 		/// インスタンスからパケット文字列を生成します。
 		/// </summary>
 		/// <returns>生成されたパケット文字列</returns>
-		public string ToPacketString() => $"{Code:000} {HopCount}{((Data?.Length ?? 0) > 0 ? " " + string.Join(':', Data) : "")}";
+		public string ToPacketString() => $"{Code:000} {HopCount}{((Data?.Length ?? 0) > 0 ? " " + string.Join(':', Data ?? Array.Empty<string>()) : "")}";
 
 		/// <summary>
 		/// パケットのインスタンスを複製します。

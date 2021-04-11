@@ -30,7 +30,7 @@ namespace P2PQuakeClient
 		/// <para>bool: 署名検証済みかどうか</param>
 		/// <para>EpspPacket: パケットのデータ 鍵も含みます</para>
 		/// </summary>
-		public event Action<bool, EpspPacket> DataReceived;
+		public event Action<bool, EpspPacket>? DataReceived;
 		internal void OnDataReceived(bool validated, EpspPacket packet)
 			=> Task.Run(() => DataReceived?.Invoke(validated, packet));
 
@@ -47,12 +47,12 @@ namespace P2PQuakeClient
 				if (isNetworkJoined == value)
 					return;
 				isNetworkJoined = value;
-				StateUpdated.Invoke();
+				StateUpdated?.Invoke();
 			}
 		}
 
 		// TODO: PropertyCahngedのほうがよかったな
-		public event Action StateUpdated;
+		public event Action? StateUpdated;
 		public int PeerCount => PeerController.Count;
 
 		private int totalNetworkPeerCount = 0;
@@ -74,11 +74,11 @@ namespace P2PQuakeClient
 		public int MaxConnectablePeerCount { get; }
 		public int MinimumKeepPeerCount { get; set; } = 5;
 		public ushort? ListenPort { get; }
-		private Task ListenerTask { get; set; }
+		private Task? ListenerTask { get; set; }
 
 		public int PeerId { get; private set; }
-		private RsaKey rsaKey;
-		public RsaKey RsaKey
+		private RsaKey? rsaKey;
+		public RsaKey? RsaKey
 		{
 			get => rsaKey;
 			private set
@@ -95,13 +95,13 @@ namespace P2PQuakeClient
 		public TimeSpan ProtocolTimeOffset { get; private set; }
 		public DateTime ProtocolTime => DateTime.Now + ProtocolTimeOffset;
 
-		private TcpListener TcpListener { get; set; }
+		private TcpListener? TcpListener { get; set; }
 
-		private async Task<ServerConnection> ConnectServerAndHandshakeAsync()
+		private async Task<ServerConnection?> ConnectServerAndHandshakeAsync()
 		{
 			var hosts = ServerHosts.OrderBy(h => Guid.NewGuid()); // ランダマイズ
 
-			ServerConnection server = null;
+			ServerConnection? server = null;
 			foreach (var host in hosts)
 			{
 				Logger.Info($"{host} に接続中…");
@@ -142,10 +142,17 @@ namespace P2PQuakeClient
 				while (true)
 				{
 					var client = TcpListener.AcceptTcpClient();
-					Logger.Debug("着信接続: " + (client.Client.RemoteEndPoint as IPEndPoint).Address);
+					// エンドポイントが取得できない場合そのまま戻る
+					if (client.Client.RemoteEndPoint is not IPEndPoint ipe)
+					{
+						client.Close();
+						client.Dispose();
+						continue;
+					}
+					Logger.Debug("Accepted: " + ipe.Address);
 
 					// とりあえず接続中におなじIPがあれば即時切断
-					if (PeerController.CheckDuplicatePeer((client.Client.RemoteEndPoint as IPEndPoint).Address))
+					if (PeerController.CheckDuplicatePeer(ipe.Address))
 					{
 						client.Close();
 						client.Dispose();
@@ -154,15 +161,15 @@ namespace P2PQuakeClient
 
 					Task.Run(async () =>
 					{
-						Logger.Debug((client.Client.RemoteEndPoint as IPEndPoint).Address + " ピア登録開始");
+						Logger.Debug(ipe.Address + " ピア登録開始");
 						if (!await PeerController.AddPeer(new EpspPeer(this, client)))
 						{
-							Logger.Debug((client.Client.RemoteEndPoint as IPEndPoint).Address + " ピア登録失敗");
+							Logger.Debug(ipe.Address + " ピア登録失敗");
 							client.Close();
 							client.Dispose();
 							return;
 						}
-						Logger.Debug((client.Client.RemoteEndPoint as IPEndPoint).Address + " ピア登録成功");
+						Logger.Debug(ipe.Address + " ピア登録成功");
 					});
 				}
 			}

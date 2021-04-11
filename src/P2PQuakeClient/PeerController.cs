@@ -16,7 +16,7 @@ namespace P2PQuakeClient
 			Client = client ?? throw new ArgumentNullException(nameof(client));
 		}
 
-		public event Action PeerCountChanged;
+		public event Action? PeerCountChanged;
 
 		private List<EpspPeer> Peers { get; } = new List<EpspPeer>();
 		public int Count => Peers.Count;
@@ -24,7 +24,7 @@ namespace P2PQuakeClient
 		public bool CheckDuplicatePeer(IPAddress addr)
 		{
 			lock (Peers)
-				return Peers.Any(p => (p.Connection.TcpClient.Client.RemoteEndPoint as IPEndPoint).Address == addr);
+				return Peers.Any(p => (p.Connection?.TcpClient.Client.RemoteEndPoint as IPEndPoint)?.Address == addr);
 		}
 		public bool CheckDuplicatePeer(int peerId)
 		{
@@ -36,13 +36,15 @@ namespace P2PQuakeClient
 		{
 			if (await peer.ConnectAndHandshakeAsync())
 			{
+				if (peer.Connection == null)
+					throw new Exception("接続が確立できていません");
 				peer.Connection.DataReceived += p => DataReceived(peer, p);
 				lock (Peers)
 					Peers.Add(peer);
 				PeerCountChanged?.Invoke();
 				peer.Connection.Disconnected += () =>
 				{
-					Client.Logger.Info($"{(peer.Connection.Established ? "" : "未完了状態の")}ピア{(peer.Id == default ? "" : (peer.Id + " "))}が切断しました。");
+					Client.Logger.Info($"{(peer.Connection.Established ? "" : "未完了状態の")}ピア {(peer.Id == default ? peer.Connection?.TcpClient.Client.RemoteEndPoint?.ToString() : peer.Id.ToString())} が切断しました。");
 					lock (Peers)
 						Peers.Remove(peer);
 					PeerCountChanged?.Invoke();
@@ -59,7 +61,7 @@ namespace P2PQuakeClient
 			//TODO: 調査エコーの発信
 			if (packet.Code == 615)
 			{
-				if (packet.Data.Length != 2
+				if (packet.Data?.Length != 2
 				 || !int.TryParse(packet.Data[0], out var senderId)
 				 || !long.TryParse(packet.Data[1], out var uniqueNumber))
 				{
@@ -76,15 +78,18 @@ namespace P2PQuakeClient
 						EchoHistories.Remove(EchoHistories.Keys.First());
 				}
 				packet.HopCount++;
-				await Task.WhenAll(Peers.Where(p => p != peer).Select(p => p.Connection.SendPacket(packet)));
+#pragma warning disable CS8602 // null 参照の可能性があるものの逆参照です。
+				await Task.WhenAny(Peers.Where(p => p != peer && p.Connection != null).Select(p => p.Connection.SendPacket(packet)));
+#pragma warning restore CS8602 // null 参照の可能性があるものの逆参照です。
 
 				// 調査エコーで指定されていた発信元ピアID  一意な数  自らのピアID  接続中のピアID(カンマ区切り)  調査エコーが届いた経由数
-				await peer.Connection.SendPacket(new EpspPacket(635, 1, packet.Data[0], packet.Data[1], Client.PeerId.ToString(), string.Join(',', Peers.Select(p => p.Id.ToString())), (packet.HopCount - 1).ToString()));
+				if (peer.Connection != null)
+					await peer.Connection.SendPacket(new EpspPacket(635, 1, packet.Data[0], packet.Data[1], Client.PeerId.ToString(), string.Join(',', Peers.Select(p => p.Id.ToString())), (packet.HopCount - 1).ToString()));
 				return;
 			}
 			if (packet.Code == 635)
 			{
-				if (packet.Data.Length != 5
+				if (packet.Data?.Length != 5
 				 || !int.TryParse(packet.Data[0], out var senderId)
 				 || !long.TryParse(packet.Data[1], out var uniqueNumber))
 				{
@@ -103,16 +108,18 @@ namespace P2PQuakeClient
 				packet.HopCount++;
 
 				var fromPeerId = EchoHistories[(senderId, uniqueNumber)];
-				EpspPeer fromPeer = null;
+				EpspPeer? fromPeer = null;
 				lock (Peers)
 					fromPeer = Peers.FirstOrDefault(p => p.Id == fromPeerId);
 				if (fromPeer == null)
-					await Task.WhenAll(Peers.Where(p => p != peer).Select(p => p.Connection.SendPacket(packet)));
-				else
+#pragma warning disable CS8602 // null 参照の可能性があるものの逆参照です。
+					await Task.WhenAny(Peers.Where(p => p != peer && p.Connection != null).Select(p => p.Connection.SendPacket(packet)));
+#pragma warning restore CS8602 // null 参照の可能性があるものの逆参照です。
+				else if (fromPeer.Connection != null)
 					await fromPeer.Connection.SendPacket(packet);
 			}
 			// 500番台
-			if (packet.Data.Length < 3)
+			if (packet.Data?.Length < 3)
 			{
 				Client.Logger.Warning($"{peer.Id} から不正な500番台パケットを受け取りました。");
 				return;
@@ -120,9 +127,11 @@ namespace P2PQuakeClient
 
 			lock (DataSignatureHistories)
 			{
-				if (DataSignatureHistories.Contains(packet.Data[0]))
+				if (packet.Data?[0] is not string signature)
 					return;
-				DataSignatureHistories.Add(packet.Data[0]);
+				if (DataSignatureHistories.Contains(signature))
+					return;
+				DataSignatureHistories.Add(signature);
 				if (DataSignatureHistories.Count > 100)
 					DataSignatureHistories.RemoveAt(0);
 			}
@@ -131,7 +140,11 @@ namespace P2PQuakeClient
 			var nextPacket = packet.Clone();
 			nextPacket.HopCount++;
 			// どれかに送信できれば次の処理へ
-			await Task.WhenAny(Peers.Where(p => p != peer).Select(p => p.Connection.SendPacket(nextPacket)).ToArray());
+#pragma warning disable CS8602 // null 参照の可能性があるものの逆参照です。
+			var tasks = Peers.Where(p => p != peer && p.Connection != null).Select(p => p.Connection.SendPacket(nextPacket)).ToArray();
+			if (tasks.Length > 0)
+				await Task.WhenAny(tasks);
+#pragma warning restore CS8602 // null 参照の可能性があるものの逆参照です。
 
 			bool validated = false;
 			switch (packet.Code)
@@ -199,13 +212,19 @@ namespace P2PQuakeClient
 			if (packet.Code / 100 == 5)
 				lock (DataSignatureHistories)
 				{
-					if (DataSignatureHistories.Contains(packet.Data[0]))
+					if (packet.Data?[0] is not string key)
 						return;
-					DataSignatureHistories.Add(packet.Data[0]);
+					if (DataSignatureHistories.Contains(key))
+						return;
+					DataSignatureHistories.Add(key);
 					if (DataSignatureHistories.Count > 100)
 						DataSignatureHistories.RemoveAt(0);
 				}
-			await Task.WhenAll(Peers.Select(peer => peer.Connection?.SendPacket(packet)).ToArray());
+#pragma warning disable CS8602 // null 参照の可能性があるものの逆参照です。
+			var tasks = Peers.Where(p => p.Connection != null).Select(peer => peer.Connection.SendPacket(packet)).ToArray();
+			if (tasks.Length > 0)
+				await Task.WhenAny(tasks);
+#pragma warning restore CS8602 // null 参照の可能性があるものの逆参照です。
 		}
 
 		public void DisconnectAllPeers()

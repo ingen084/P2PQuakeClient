@@ -20,20 +20,22 @@ namespace P2PQuakeClient
 		}
 
 		private EpspClient EpspClient { get; }
-		public Peer PeerInfo { get; }
+		public Peer? PeerInfo { get; }
 		public IEpspLogger Logger => EpspClient.Logger;
 
-		public PeerConnection Connection { get; private set; }
+		public PeerConnection? Connection { get; private set; }
 		public bool IsConnected => Connection?.IsConnected ?? false;
-		public ClientInformation ClientInformation { get; private set; }
+		public ClientInformation? ClientInformation { get; private set; }
 		public int Id => Connection?.Id ?? default;
 
 		public async Task<bool> ConnectAndHandshakeAsync()
 		{
 			if (Connection == null)
 			{
+#pragma warning disable CS8602 // null 参照の可能性があるものの逆参照です。
 				Logger.Info($"ピア{PeerInfo.Id} に接続中…");
 				Connection = new PeerConnection(PeerInfo.Hostname, PeerInfo.Port, PeerInfo.Id);
+#pragma warning restore CS8602 // null 参照の可能性があるものの逆参照です。
 			}
 			try
 			{
@@ -50,7 +52,7 @@ namespace P2PQuakeClient
 			{
 				Logger.Warning($"ピア{PeerInfo?.Id.ToString() ?? ""} への接続に失敗しました。 {ex.Message}");
 			}
-			Logger.Info($"ピア{PeerInfo.Id} に接続できませんでした。");
+			Logger.Info($"ピア{PeerInfo?.Id} に接続できませんでした。");
 			return false;
 		}
 

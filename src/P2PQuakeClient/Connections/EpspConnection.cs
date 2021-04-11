@@ -11,16 +11,16 @@ namespace P2PQuakeClient.Connections
 	public abstract class EpspConnection : IDisposable
 	{
 		public TcpClient TcpClient { get; }
-		protected NetworkStream Stream { get; set; }
+		protected NetworkStream? Stream { get; set; }
 
 		/// <summary>
 		/// 接続完了 ただしTcpClientを渡した場合は流れてこない
 		/// </summary>
-		public event Action Connected;
+		public event Action? Connected;
 		/// <summary>
 		/// 切断
 		/// </summary>
-		public event Action Disconnected;
+		public event Action? Disconnected;
 
 		/// <summary>
 		/// 接続済みかどうか
@@ -30,11 +30,11 @@ namespace P2PQuakeClient.Connections
 		byte[] ReceiveBuffer { get; }
 		PacketSplitter Splitter { get; }
 
-		Thread ConnectionThread { get; set; }
+		Thread? ConnectionThread { get; set; }
 		CancellationTokenSource TokenSource { get; }
 
-		string Host { get; }
-		int Port { get; }
+		string? Host { get; }
+		int? Port { get; }
 		protected EpspConnection(string host, int port)
 		{
 			ReceiveBuffer = new byte[1024];
@@ -61,14 +61,17 @@ namespace P2PQuakeClient.Connections
 			Disconnected += () => ManualResetEvent.Set();
 			if (!TcpClient.Connected)
 			{
-				if (!TcpClient.ConnectAsync(Host, Port).Wait(2000))
+				if (Host is not string host || Port is not int port)
+					throw new InvalidOperationException("接続先情報が正常に設定されていません");
+
+				if (!TcpClient.ConnectAsync(host, port).Wait(2000))
 					throw new EpspException("接続がタイムアウトしました");
 				Connected?.Invoke();
 			}
-			ConnectionThread = new Thread(new ParameterizedThreadStart(ReceiveTask));
+			ConnectionThread = new Thread(ReceiveTask);
 			ConnectionThread.Start();
 		}
-		private async void ReceiveTask(object _)
+		private async void ReceiveTask(object? _)
 		{
 			try
 			{
@@ -97,8 +100,8 @@ namespace P2PQuakeClient.Connections
 		protected ConcurrentQueue<EpspPacket> PacketQuete { get; } = new();
 		protected virtual void OnReceive(EpspPacket packet)
 		{
-			//if (this is ServerConnection)
-			//	Console.WriteLine(GetHashCode() + "↓ " + packet.ToPacketString());
+			if (this is PeerConnection pc && pc.IsHosted)
+				Console.WriteLine(GetHashCode() + " PH↓ " + packet.ToPacketString());
 			//else
 			//	Console.WriteLine(GetHashCode() + "P↓ " + packet.ToPacketString());
 			PacketQuete.Enqueue(packet);
@@ -117,7 +120,7 @@ namespace P2PQuakeClient.Connections
 					return ManualResetEvent.Wait(10000);
 				}))
 				throw new EpspException("要求がタイムアウトしました。");
-			if (!PacketQuete.TryDequeue(out var lastPacket)) // TODO: なおす
+			if (!PacketQuete.TryDequeue(out var lastPacket))
 				throw new EpspException("パケットを受信できませんでした");
 			if (lastPacket.Code == 298)
 				throw new EpspNonCompliantProtocolException("クライアントが仕様に準拠していないようです。");
@@ -135,12 +138,13 @@ namespace P2PQuakeClient.Connections
 					Disconnect();
 					return;
 				}
-				//if (this is ServerConnection)
-				//	Console.WriteLine(GetHashCode() + "↑ " + packet.ToPacketString());
+				if (this is PeerConnection pc && pc.IsHosted)
+					Console.WriteLine(GetHashCode() + " PH↑ " + packet.ToPacketString());
 				//else// if (packet.Code / 100 == 5)
 				//	Console.WriteLine(GetHashCode() + "P↑ " + packet.ToPacketString());
 				byte[] buffer = Splitter.Encoding.GetBytes(packet.ToPacketString() + "\r\n");
-				await Stream.WriteAsync(buffer.AsMemory(0, buffer.Length));
+				if (Stream != null)
+					await Stream.WriteAsync(buffer.AsMemory(0, buffer.Length));
 			}
 			catch (Exception ex) when (ex is IOException || ex is SocketException)
 			{

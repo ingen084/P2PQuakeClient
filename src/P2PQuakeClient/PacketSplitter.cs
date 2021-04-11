@@ -9,7 +9,7 @@ namespace P2PQuakeClient
 		public Encoding Encoding { get; } = Encoding.GetEncoding(932);
 
 		private readonly object _lockObject = new();
-		private byte[] _pendingBytes;
+		private byte[]? _pendingBytes;
 
 		public IEnumerable<string> ParseAndSplit(byte[] bytes, int byteCount)
 		{

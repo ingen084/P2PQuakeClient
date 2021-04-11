@@ -54,12 +54,12 @@ namespace P2PQuakeClient.Connections
 		/// 伝送すべき情報を受信した
 		/// 500･600番代の調査パケットをやり取りします
 		/// </summary>
-		public event Action<EpspPacket> DataReceived;
+		public event Action<EpspPacket>? DataReceived;
 
-		Timer EchoTimer;
+		Timer? EchoTimer;
 		public async Task<ClientInformation> ConnectAndExchangeClientInformation(ClientInformation information)
 		{
-			EpspPacket clientVersionPacket = null;
+			EpspPacket? clientVersionPacket = null;
 
 			if (IsHosted)
 			{
@@ -76,7 +76,7 @@ namespace P2PQuakeClient.Connections
 				// TODO: バージョンチェック
 				await SendPacket(new EpspPacket(634, 1, information.ToPacketData()));
 			}
-			if (clientVersionPacket.Data.Length < 3)
+			if (clientVersionPacket.Data == null || clientVersionPacket.Data.Length < 3)
 				throw new EpspException("ピアから正常なレスポンスがありせんでした。");
 
 			EchoTimer = new Timer(150 * 1000);
@@ -113,9 +113,9 @@ namespace P2PQuakeClient.Connections
 			await SendPacket(new EpspPacket(612, 1));
 			var peerIdPacket = await WaitNextPacket(632);
 
-			if (peerIdPacket.Data.Length < 1)
+			if (peerIdPacket.Data?.Length < 1)
 				throw new EpspException("ピアから正常なレスポンスがありせんでした。");
-			if (!int.TryParse(peerIdPacket.Data[0], out var id))
+			if (!int.TryParse(peerIdPacket.Data?[0], out var id))
 				throw new EpspException("ピアから送信されたIDをパースすることができませんでした。");
 			Id = id;
 		}
