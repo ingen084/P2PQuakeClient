@@ -1,13 +1,19 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28010.2041
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31129.286
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "P2PQuakeClient.Sandbox", "P2PQuakeClient.Sandbox\P2PQuakeClient.Sandbox.csproj", "{7A5B1CE6-0965-414F-859E-51DA0CCC339B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P2PQuakeClient", "src\P2PQuakeClient\P2PQuakeClient.csproj", "{82E04A7D-1051-4043-8F23-06A81761444D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "P2PQuakeClient", "src\P2PQuakeClient\P2PQuakeClient.csproj", "{82E04A7D-1051-4043-8F23-06A81761444D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "P2PQuakeClient.Test", "src\P2PQuakeClient.Test\P2PQuakeClient.Test.csproj", "{5F5D58E9-2D72-44FC-AD8F-D77A0F7BD7D0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "P2PQuakeClient.Test", "src\P2PQuakeClient.Test\P2PQuakeClient.Test.csproj", "{5F5D58E9-2D72-44FC-AD8F-D77A0F7BD7D0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{6A522AAE-7BBC-4A66-A4F8-6883933FCC32}"
+	ProjectSection(SolutionItems) = preProject
+		docker-compose.yml = docker-compose.yml
+		Dockerfile = Dockerfile
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

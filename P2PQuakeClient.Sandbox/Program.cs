@@ -22,7 +22,7 @@ namespace P2PQuakeClient.Sandbox
 					"p2pquake.ddo.jp"
 				};
 
-				var client = new EpspClient(new EasyConsoleLogger(), hosts, 901, 64800, 1024)
+				var client = new EpspClient(new EasyConsoleLogger(), hosts, 901, 6911, 1024)
 				{
 					//MinimumKeepPeerCount = 10
 				};
