@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using System.Timers;
 
 namespace P2PQuakeClient.Sandbox
 {
@@ -28,12 +28,14 @@ namespace P2PQuakeClient.Sandbox
 				};
 				client.DataReceived += (v, d) =>
 				{
-					Console.WriteLine($"**データ受信 {d.Code} hop:{d.HopCount} data:{string.Join(':', d.Data)}");
+					Console.WriteLine($"**データ受信 {d.Code} hop:{d.HopCount}");
 				};
 
 				void UpdateTitle()
 				{
-					Console.Title = $"P2P地震情報 テストクライアント 接続/総ピア:{client.PeerCount}/{client.TotalNetworkPeerCount} ネットワーク:{(client.IsNetworkJoined ? "接続中" : "未接続")} ポート:{(client.IsPortForwarded ? "解放済" : "未開放")} 鍵:{(client.RsaKey == null ? "未取得" : "取得済み")}";
+					var msg = $"P2P地震情報 テストクライアント 接続/総ピア:{client.PeerCount}/{client.TotalNetworkPeerCount} ネットワーク:{(client.IsNetworkJoined ? "接続中" : "未接続")} ポート:{(client.IsPortForwarded ? "解放済" : "未開放")} 鍵:{(client.RsaKey == null ? "未取得" : "取得済み")}";
+					Console.Title = msg;
+					Console.WriteLine(msg);
 				}
 				UpdateTitle();
 				client.StateUpdated += () =>
@@ -48,8 +50,7 @@ namespace P2PQuakeClient.Sandbox
 				}
 				try
 				{
-					using var timer = new Timer(1000 * 60 * 10);
-					timer.Elapsed += async (s, e) =>
+					using var timer = new Timer(async (s) =>
 					{
 						try
 						{
@@ -60,10 +61,12 @@ namespace P2PQuakeClient.Sandbox
 						{
 							Console.WriteLine("**エコー中に問題が発生しました " + ex.Message);
 						}
-					};
-					timer.Start();
-					Console.ReadLine();
-					timer.Stop();
+					}, null, 1000 * 60 * 10, 1000 * 60 * 10);
+
+					var mre = new ManualResetEvent(false);
+					Console.CancelKeyPress += (s, e) => mre.Set();
+					mre.WaitOne();
+					timer.Change(Timeout.Infinite, Timeout.Infinite);
 				}
 				finally
 				{
