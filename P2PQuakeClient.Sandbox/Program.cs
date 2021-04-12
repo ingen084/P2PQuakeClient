@@ -1,13 +1,21 @@
-﻿using System;
+﻿using ConsoleAppFramework;
+using Microsoft.Extensions.Hosting;
+using System;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace P2PQuakeClient.Sandbox
 {
-	class Program
+	class Program : ConsoleAppBase
 	{
-		static async Task Main(string[] args)
+		static Task Main(string[] args)
+			=> Host.CreateDefaultBuilder().RunConsoleAppFrameworkAsync<Program>(args);
+
+		public async Task Run(
+			[Option("p", "listen port.")] ushort listenPort = 6911,
+			[Option("m", "minimum keep peer counts.")] int minPeers = 10,
+			[Option("x", "max peer counts.")] int maxPeers = 100)
 		{
 			try
 			{
@@ -22,9 +30,9 @@ namespace P2PQuakeClient.Sandbox
 					"p2pquake.ddo.jp"
 				};
 
-				var client = new EpspClient(new EasyConsoleLogger(), hosts, 901, 6911, 1024)
+				var client = new EpspClient(new EasyConsoleLogger(), hosts, 901, listenPort, maxPeers)
 				{
-					//MinimumKeepPeerCount = 10
+					MinimumKeepPeerCount = minPeers
 				};
 				client.DataReceived += (v, d) =>
 				{
