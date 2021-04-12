@@ -140,7 +140,7 @@ namespace P2PQuakeClient.Connections
 				}
 				//if (this is PeerConnection pc && pc.IsHosted)
 				//	Console.WriteLine(GetHashCode() + " PH↑ " + packet.ToPacketString());
-				//else// if (packet.Code / 100 == 5)
+				//else if (packet.Code / 100 == 5)
 				//	Console.WriteLine(GetHashCode() + "P↑ " + packet.ToPacketString());
 				byte[] buffer = Splitter.Encoding.GetBytes(packet.ToPacketString() + "\r\n");
 				if (Stream != null)
