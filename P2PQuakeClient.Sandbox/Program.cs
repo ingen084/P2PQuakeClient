@@ -65,7 +65,13 @@ namespace P2PQuakeClient.Sandbox
 					}, null, 1000 * 60 * 10, 1000 * 60 * 10);
 
 					var mre = new ManualResetEvent(false);
-					Console.CancelKeyPress += (s, e) => mre.Set();
+					Console.CancelKeyPress += (s, e) =>
+					{
+						if (mre.WaitOne(1))
+							return;
+						mre.Set();
+						e.Cancel = true;
+					};
 					mre.WaitOne();
 					timer.Change(Timeout.Infinite, Timeout.Infinite);
 				}
