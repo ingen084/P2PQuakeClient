@@ -20,6 +20,7 @@ namespace P2PQuakeClient.Sandbox
 			try
 			{
 				Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+				Console.WriteLine($"P2P地震情報 クライアントテスト 待受ポート:{listenPort} 維持ピア数:{minPeers} 最大ピア数:{maxPeers}");
 				Console.WriteLine("改行で続行");
 				Console.ReadLine();
 
