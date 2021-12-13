@@ -38,7 +38,17 @@ namespace P2PQuakeClient
 			{
 				if (peer.Connection == null)
 					throw new Exception("接続が確立できていません");
-				peer.Connection.DataReceived += p => DataReceived(peer, p);
+				peer.Connection.DataReceived += p =>
+				{
+					try
+					{
+						DataReceived(peer, p);
+					}
+					catch (Exception ex)
+					{
+						Client.Logger.Warning("ピアからのデータ処理中に例外が発生しました: " + ex);
+					}
+				};
 				lock (Peers)
 					Peers.Add(peer);
 				PeerCountChanged?.Invoke();
